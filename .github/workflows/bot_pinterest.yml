@@ -1,0 +1,31 @@
+name: Bot Solo 2 - Pinterest Auto-Pinner (Google Imagens)
+
+on:
+  schedule:
+    # Roda automaticamente 1x por dia (as 12:00 UTC)
+    - cron: '0 12 * * *'
+  workflow_dispatch: # Permite disparar no botao manual
+
+jobs:
+  pinning:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar codigo do repositorio
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Instalar Dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Executar Bot Pinterest
+        env:
+          PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
+          PINTEREST_BOARD_ID: ${{ secrets.PINTEREST_BOARD_ID }}
+        run: python bot_pinterest.py
