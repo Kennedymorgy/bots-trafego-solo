@@ -5,10 +5,28 @@ import xml.etree.ElementTree as ET
 # Configurações do seu blog
 HOST = "k-404modapk.blogspot.com"
 PINTEREST_ACCESS_TOKEN = os.environ.get("PINTEREST_ACCESS_TOKEN", "")
-BOARD_ID = os.environ.get("PINTEREST_BOARD_ID", "")
+
+def obter_board_id_automatico(headers):
+    """Busca automaticamente a primeira pasta (Board) criada na sua conta do Pinterest."""
+    try:
+        res = requests.get("https://api.pinterest.com/v5/boards", headers=headers, timeout=15)
+        if res.status_code == 200:
+            dados = res.json()
+            items = dados.get("items", [])
+            if items:
+                board = items[0]
+                print(f"🎯 Pasta encontrada automaticamente: '{board['name']}' (ID: {board['id']})")
+                return board['id']
+            else:
+                print("⚠️ Nenhuma pasta encontrada na sua conta do Pinterest. Crie uma pasta primeiro!")
+        else:
+            print(f"❌ Erro ao buscar pastas ({res.status_code}): {res.text}")
+    except Exception as e:
+        print(f"❌ Falha ao conectar na API do Pinterest: {e}")
+    return None
 
 def extrair_dados_sitemap():
-    """Busca os posts do sitemap para gerar Pins visuais no Pinterest."""
+    """Busca o post mais recente do seu sitemap."""
     sitemap_url = f"https://{HOST}/sitemap.xml"
     posts = []
     
@@ -20,34 +38,37 @@ def extrair_dados_sitemap():
             for loc in root.findall('.//s:loc', ns):
                 url = loc.text
                 if url and ("/p/" in url or ".html" in url):
-                    # Extrai um titulo limpo a partir da URL
                     nome_jogo = url.split("/")[-1].replace(".html", "").replace("-", " ").title()
                     posts.append({
                         "url": url,
-                        "titulo": f"Download {nome_jogo} MOD APK (Atualizado)",
-                        "descricao": f"Baixe {nome_jogo} MOD APK com dinheiro infinito e todas as funções desbloqueadas. Link direto e seguro!"
+                        "titulo": f"Download {nome_jogo} MOD APK",
+                        "descricao": f"Baixe {nome_jogo} MOD APK atualizado com dinheiro infinito e link direto no site!"
                     })
-            print(f"📌 Encontrados {len(posts)} posts para otimização visual no Pinterest.")
     except Exception as e:
         print(f"⚠️ Erro ao ler sitemap: {e}")
         
     return posts
 
 def publicar_pin_pinterest(post):
-    """Envia o Pin para a API do Pinterest com o link direto do seu site."""
-    if not PINTEREST_ACCESS_TOKEN or not BOARD_ID:
-        print("ℹ️ Modo de Teste: Tokens do Pinterest nao configurados no GitHub Secrets.")
-        print(f"📍 Criando Pin simulado: {post['titulo']} -> {post['url']}")
+    """Publica o Pin oficial no seu Pinterest."""
+    if not PINTEREST_ACCESS_TOKEN:
+        print("ℹ️ Token do Pinterest nao encontrado. Cadastre o PINTEREST_ACCESS_TOKEN nos Secrets do GitHub.")
         return
 
-    endpoint = "https://api.pinterest.com/v5/pins"
     headers = {
         "Authorization": f"Bearer {PINTEREST_ACCESS_TOKEN}",
         "Content-Type": "application/json"
     }
-    
+
+    # Busca a pasta automaticamente
+    board_id = obter_board_id_automatico(headers)
+    if not board_id:
+        print("❌ Impossivel publicar Pin sem um Board ID valido.")
+        return
+
+    endpoint = "https://api.pinterest.com/v5/pins"
     payload = {
-        "board_id": BOARD_ID,
+        "board_id": board_id,
         "title": post['titulo'],
         "description": post['descricao'],
         "link": post['url'],
@@ -60,11 +81,11 @@ def publicar_pin_pinterest(post):
     try:
         res = requests.post(endpoint, json=payload, headers=headers, timeout=15)
         if res.status_code in [200, 201]:
-            print(f"🚀 PIN PUBLICADO COM SUCESSO: {post['titulo']}")
+            print(f"🚀 PIN PUBLICADO COM SUCESSO! Titulo: {post['titulo']}")
         else:
-            print(f"⚠️ Resposta Pinterest ({res.status_code}): {res.text}")
+            print(f"❌ Erro ao criar Pin ({res.status_code}): {res.text}")
     except Exception as e:
-        print(f"❌ Erro ao enviar Pin: {e}")
+        print(f"❌ Erro de conexao com Pinterest: {e}")
 
 if __name__ == "__main__":
     lista_posts = extrair_dados_sitemap()
