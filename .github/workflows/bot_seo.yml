@@ -1,0 +1,35 @@
+name: Bot Solo 5 - Rich Snippets SEO
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  seo-optimizer:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v3
+
+      - name: Configurar Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Executar Bot 5
+        run: python bot_seo_rich_snippets.py
+
+      - name: Salvar resultados
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add rich_snippets_gerados.json || true
+          git commit -m "chore: atualiza rich snippets [skip ci]" || true
+          git push || true
