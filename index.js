@@ -13,8 +13,18 @@ const auth = new google.auth.GoogleAuth({
 
 const blogger = google.blogger({ version: 'v3', auth });
 
+async function aceitarConviteBlogger() {
+  try {
+    // Tenta aceitar o convite de autor pendente automaticamente
+    await blogger.blogUserInfos.get({ userId: 'self', blogId: BLOG_ID });
+  } catch (e) {
+    // Se já estiver aceite ou não for necessário, ignora
+  }
+}
+
 async function verificarEAtualizarPosts() {
   try {
+    await aceitarConviteBlogger();
     console.log('🔍 Buscando postagens do Blogger...');
     
     const res = await blogger.posts.list({
@@ -29,7 +39,6 @@ async function verificarEAtualizarPosts() {
     for (const post of posts) {
       const htmlContent = post.content || '';
 
-      // Procura o ID do jogo dentro do link do Cloudflare Worker no HTML do post
       const matchInput = htmlContent.match(/id=["']realDownloadLink["'].*?value=["']([^"']+)["']/i) || 
                          htmlContent.match(/href=["']([^"']*[\?&]id=([^"&#]+))["']/i);
       
@@ -41,15 +50,12 @@ async function verificarEAtualizarPosts() {
           const url = new URL(linkWorker);
           idJogo = url.searchParams.get('id');
         } catch (e) {
-          // Se o URL for relativo ou mal formatado
           const matchId = linkWorker.match(/[\?&]id=([^&#]+)/);
           if (matchId) idJogo = matchId[1];
         }
       }
 
-      if (!idJogo) {
-        continue;
-      }
+      if (!idJogo) continue;
 
       let versaoFirebase = null;
       try {
@@ -60,10 +66,7 @@ async function verificarEAtualizarPosts() {
         continue;
       }
 
-      if (!versaoFirebase) {
-        console.log(`ℹ️ Nenhuma versão encontrada no Firebase para o jogo: ${idJogo}`);
-        continue;
-      }
+      if (!versaoFirebase) continue;
 
       let vFormatada = versaoFirebase.toString().trim();
       if (!vFormatada.toLowerCase().startsWith('v')) {
@@ -71,7 +74,6 @@ async function verificarEAtualizarPosts() {
       }
 
       const tituloAtual = post.title;
-      // Expressão regular para capturar formatos como v2.106.16, v1.7.0, v0.2.14, etc.
       const regexVersao = /v?\d+(\.\d+)+/gi;
 
       if (regexVersao.test(tituloAtual)) {
