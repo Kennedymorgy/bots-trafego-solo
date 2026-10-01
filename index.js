@@ -4,27 +4,20 @@ const { google } = require('googleapis');
 const BLOG_ID = '2435792559888581201';
 const FIREBASE_BASE_URL = 'https://meublog-apks-default-rtdb.firebaseio.com';
 
-const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+const oauth2Client = new google.auth.OAuth2(
+  process.env.CLIENT_ID,
+  process.env.CLIENT_SECRET,
+  'https://developers.google.com/oauthplayground'
+);
 
-const auth = new google.auth.GoogleAuth({
-  credentials,
-  scopes: ['https://www.googleapis.com/auth/blogger'],
+oauth2Client.setCredentials({
+  refresh_token: process.env.REFRESH_TOKEN,
 });
 
-const blogger = google.blogger({ version: 'v3', auth });
-
-async function aceitarConviteBlogger() {
-  try {
-    // Tenta aceitar o convite de autor pendente automaticamente
-    await blogger.blogUserInfos.get({ userId: 'self', blogId: BLOG_ID });
-  } catch (e) {
-    // Se já estiver aceite ou não for necessário, ignora
-  }
-}
+const blogger = google.blogger({ version: 'v3', auth: oauth2Client });
 
 async function verificarEAtualizarPosts() {
   try {
-    await aceitarConviteBlogger();
     console.log('🔍 Buscando postagens do Blogger...');
     
     const res = await blogger.posts.list({
@@ -62,7 +55,7 @@ async function verificarEAtualizarPosts() {
         const fbRes = await axios.get(`${FIREBASE_BASE_URL}/jogos/${idJogo}/versao.json`);
         versaoFirebase = fbRes.data;
       } catch (errFb) {
-        console.error(`⚠️ Erro ao consultar Firebase para "${idJogo}":`, errFb.response ? errFb.response.statusText : errFb.message);
+        console.error(`⚠️️ Erro ao consultar Firebase para "${idJogo}":`, errFb.response ? errFb.response.statusText : errFb.message);
         continue;
       }
 
