@@ -4,6 +4,7 @@ const { google } = require('googleapis');
 const BLOG_ID = '2435792559888581201';
 const FIREBASE_BASE_URL = 'https://meublog-apks-default-rtdb.firebaseio.com';
 
+// Cliente OAuth2 para o Blogger
 const oauth2Client = new google.auth.OAuth2(
   process.env.CLIENT_ID,
   process.env.CLIENT_SECRET,
@@ -15,6 +16,46 @@ oauth2Client.setCredentials({
 });
 
 const blogger = google.blogger({ version: 'v3', auth: oauth2Client });
+
+// Função para enviar a URL para a Google Indexing API
+async function notificarGoogleIndexing(urlPost) {
+  try {
+    if (!process.env.GOOGLE_INDEXING_CREDENTIALS) {
+      console.log('⚠️ Secret GOOGLE_INDEXING_CREDENTIALS não configurada.');
+      return;
+    }
+
+    const serviceAccountKey = JSON.parse(process.env.GOOGLE_INDEXING_CREDENTIALS);
+
+    const jwtClient = new google.auth.JWT(
+      serviceAccountKey.client_email,
+      null,
+      serviceAccountKey.private_key,
+      ['https://www.googleapis.com/auth/indexing'],
+      null
+    );
+
+    await jwtClient.authorize();
+
+    const response = await axios.post(
+      'https://indexing.googleapis.com/v3/urlNotifications:publish',
+      {
+        url: urlPost,
+        type: 'URL_UPDATED',
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${jwtClient.credentials.access_token}`,
+        },
+      }
+    );
+
+    console.log(`📡 Google Indexing API notificada para: ${urlPost} (Status: ${response.status})`);
+  } catch (err) {
+    console.error(`❌ Erro ao notificar a Google Indexing API para ${urlPost}:`, err.response ? err.response.data : err.message);
+  }
+}
 
 async function verificarEAtualizarPosts() {
   try {
@@ -55,7 +96,7 @@ async function verificarEAtualizarPosts() {
         const fbRes = await axios.get(`${FIREBASE_BASE_URL}/jogos/${idJogo}/versao.json`);
         versaoFirebase = fbRes.data;
       } catch (errFb) {
-        console.error(`⚠️️ Erro ao consultar Firebase para "${idJogo}":`, errFb.response ? errFb.response.statusText : errFb.message);
+        console.error(`⚠ Erro ao consultar Firebase para "${idJogo}":`, errFb.response ? errFb.response.statusText : errFb.message);
         continue;
       }
 
@@ -84,6 +125,10 @@ async function verificarEAtualizarPosts() {
               }
             });
             console.log(`✅ Post do jogo "${idJogo}" atualizado com sucesso no Blogger!`);
+
+            // Notifica o Google Search Console sobre a atualização do post
+            await notificarGoogleIndexing(post.url);
+
           } catch (errBlogger) {
             console.error(`❌ Erro ao atualizar no Blogger para ${idJogo}:`, errBlogger.message);
           }
