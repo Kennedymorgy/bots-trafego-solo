@@ -15,12 +15,14 @@ jobs:
       - name: Configurar Node.js
         uses: actions/setup-node@v3
         with:
-          node.js-version: '18'
+          node-version: '18'
 
       - name: Instalar dependências
         run: npm install
 
       - name: Executar atualização
         env:
-          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
         run: node index.js
