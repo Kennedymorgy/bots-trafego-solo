@@ -7,7 +7,12 @@ const WORKER_BASE = 'https://orange-star-d066.claudiokennedymorgy.workers.dev';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Configuração do OAuth2 do Google
+// Puxa as entradas do GitHub Action (quando você clica em Run)
+const INPUT_ID_JOGO = process.env.INPUT_ID_JOGO ? process.env.INPUT_ID_JOGO.trim() : '';
+const INPUT_FUNCOES_MOD = process.env.INPUT_FUNCOES_MOD ? process.env.INPUT_FUNCOES_MOD.trim() : '';
+const INPUT_PESO_MB = process.env.INPUT_PESO_MB ? process.env.INPUT_PESO_MB.trim() : '';
+
+// Configuração do OAuth2
 const oauth2Client = new google.auth.OAuth2(
   process.env.CLIENT_ID,
   process.env.CLIENT_SECRET,
@@ -53,8 +58,8 @@ async function notificarGoogleIndexing(urlPost) {
   }
 }
 
-// Trata os Recursos da Caixinha salvos no Firebase
-function obterRecursosDoFirebase(jogo) {
+// Trata os Recursos da Caixinha salvos no Firebase ou vindo das Inputs do Action
+function obterRecursosDoJogo(jogo) {
   if (jogo.recursos_mod) {
     if (Array.isArray(jogo.recursos_mod) && jogo.recursos_mod.length > 0) {
       return jogo.recursos_mod.map(r => String(r).trim()).filter(r => r !== '');
@@ -66,7 +71,7 @@ function obterRecursosDoFirebase(jogo) {
   return ['Mod Menu Atualizado', 'Recursos Ilimitados', 'Sem Anúncios', 'Anti-Ban Integrado'];
 }
 
-// Analisa e define Marcadores Únicos e Inteligentes
+// Define Marcadores Sem Repetição
 function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   const marcadores = new Set();
   const textoCompleto = `${nomeJogo} ${recursos.join(' ')}`.toLowerCase();
@@ -74,14 +79,14 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   // 1. Nome do Jogo
   marcadores.add(nomeJogo);
 
-  // 2. Categoria / Gênero
+  // 2. Categoria
   if (jogo.categoria) {
     marcadores.add(jogo.categoria.trim());
   } else {
     marcadores.add('Jogos');
   }
 
-  // 3. Tipo de MOD (Apenas 1 Principal: MOD MENU ou MOD APK)
+  // 3. Apenas 1 tipo de Mod (MOD MENU ou MOD APK)
   const temModMenu = textoCompleto.includes('mod menu') || textoCompleto.includes('menu');
   if (temModMenu) {
     marcadores.add('MOD MENU');
@@ -99,13 +104,13 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   } else if (eOnline) {
     marcadores.add('Online');
   } else {
-    marcadores.add('Offline'); // Padrão
+    marcadores.add('Offline');
   }
 
   return Array.from(marcadores);
 }
 
-// Gerador de Título Otimizado (Até 10 Funções no Título)
+// Gerador de Título Otimizado (Até 10 Funções da caixinha)
 function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
@@ -113,8 +118,6 @@ function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   }
 
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
-  
-  // Pega até 10 funções da caixinha para o título
   const funcoesTitulo = recursos.slice(0, 10).join(' / ');
 
   return `${nomeJogo} ${tagMod} ${vFormatada} (${funcoesTitulo})`;
@@ -203,6 +206,25 @@ Adicione o nosso site aos seus favoritos para baixar as novas atualizações ass
 
 async function executarPostagem() {
   try {
+    // 1. Se você passou os dados no botão "Run" do GitHub, atualiza o Firebase primeiro
+    if (INPUT_ID_JOGO) {
+      console.log(`📝 Dados recebidos na execução para o ID: "${INPUT_ID_JOGO}"`);
+      const updateData = {};
+      
+      if (INPUT_FUNCOES_MOD) {
+        updateData.recursos_mod = INPUT_FUNCOES_MOD.split(',').map(f => f.trim()).filter(f => f.length > 0);
+      }
+      if (INPUT_PESO_MB) {
+        updateData.peso = INPUT_PESO_MB;
+      }
+      updateData.postado_blogger = false; // Força a postagem
+
+      console.log(`📡 Salvando novas funções e peso no Firebase para "${INPUT_ID_JOGO}"...`);
+      await axios.patch(`${FIREBASE_BASE_URL}/jogos/${INPUT_ID_JOGO}.json`, updateData);
+      console.log(`✅ Firebase atualizado com sucesso!`);
+    }
+
+    // 2. Busca todos os jogos pendentes de postagem no Firebase
     console.log('📡 Buscando lista de jogos no Firebase...');
     const res = await axios.get(`${FIREBASE_BASE_URL}/jogos.json`);
     const jogos = res.data;
@@ -215,25 +237,23 @@ async function executarPostagem() {
     for (const idJogo in jogos) {
       const jogo = jogos[idJogo];
 
+      // Se passou um ID no Run, foca apenas nele. Se não, processa os pendentes.
+      if (INPUT_ID_JOGO && idJogo !== INPUT_ID_JOGO) {
+        continue;
+      }
+
       if (jogo.postado_blogger) {
         console.log(`⏭️ Jogo "${idJogo}" já foi postado. Pulando...`);
         continue;
       }
 
       const nomeJogo = jogo.nome || idJogo.replace(/-/g, ' ');
-      console.log(`\n🤖 Processando postagem para o ID Exato: "${idJogo}"...`);
+      console.log(`\n🤖 Processando postagem para: "${idJogo}"...`);
 
-      // 1. Obtém as funções reais vindas da sua caixinha no Firebase
-      const recursos = obterRecursosDoFirebase(jogo);
-
-      // 2. Define os marcadores sem repetir tags
+      const recursos = obterRecursosDoJogo(jogo);
       const labels = definirMarcadoresInteligentes(nomeJogo, jogo, recursos);
       const ehModMenu = labels.includes('MOD MENU');
-
-      // 3. Cria o título puxando até 10 funções da caixinha
       const tituloPost = gerarTituloInteligente(nomeJogo, jogo.versao, recursos, ehModMenu);
-
-      // 4. Monta o HTML com tags ocultas e h2
       const htmlPost = construirHTMLPost(jogo, idJogo, recursos);
 
       try {
@@ -252,32 +272,30 @@ async function executarPostagem() {
         console.log(`🏷️ Marcadores: ${labels.join(', ')}`);
         console.log(`🔗 URL: ${urlPublicada}`);
 
-        // Indexação no Google
         await notificarGoogleIndexing(urlPublicada);
 
-        // Marca como postado no Firebase
         await axios.patch(`${FIREBASE_BASE_URL}/jogos/${idJogo}.json`, {
           postado_blogger: true,
           blogger_post_id: response.data.id,
           post_url: urlPublicada
         });
 
-        console.log(`✅ Marcado como postado no Firebase para "${idJogo}".`);
+        console.log(`✅ Marcado como publicado no Firebase.`);
 
       } catch (errBlogger) {
         if (errBlogger.response && errBlogger.response.status === 429) {
-          console.error(`⚠️ Cota da API do Blogger atingida (429). Interrompendo execução.`);
+          console.error(`⚠️ Cota da API do Blogger atingida (429). Interrompendo temporariamente.`);
           break;
         } else {
           console.error(`❌ Erro ao postar "${idJogo}":`, errBlogger.message);
         }
       }
 
-      console.log('⏳ Aguardando 5 segundos antes da próxima postagem...');
+      console.log('⏳ Aguardando 5 segundos...');
       await sleep(5000);
     }
 
-    console.log('\n🎉 Todas as postagens foram concluídas!');
+    console.log('\n🎉 Processo finalizado com sucesso!');
 
   } catch (error) {
     console.error('❌ Erro geral no robô:', error.response ? error.response.data : error.message);
