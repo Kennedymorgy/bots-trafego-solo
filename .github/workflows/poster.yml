@@ -2,6 +2,21 @@ name: Bot de Postagem Blogger
 
 on:
   workflow_dispatch: # Permite executar manualmente pelo botão 'Run workflow'
+    inputs:
+      id_jogo:
+        description: 'ID Exato do Jogo no Firebase (ex: football-league-2026)'
+        required: true
+        type: string
+      funcoes_mod:
+        description: 'Funções do Mod (separadas por vírgula)'
+        required: false
+        type: string
+        default: ''
+      peso_mb:
+        description: 'Tamanho / Peso do Jogo (ex: 145 MB)'
+        required: false
+        type: string
+        default: 'Varia com o dispositivo'
 
 jobs:
   publicar:
@@ -25,4 +40,7 @@ jobs:
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
           GOOGLE_INDEXING_CREDENTIALS: ${{ secrets.GOOGLE_INDEXING_CREDENTIALS || secrets.GOOGLE_INDEXING }}
+          INPUT_ID_JOGO: ${{ inputs.id_jogo }}
+          INPUT_FUNCOES_MOD: ${{ inputs.funcoes_mod }}
+          INPUT_PESO_MB: ${{ inputs.peso_mb }}
         run: node poster.js
