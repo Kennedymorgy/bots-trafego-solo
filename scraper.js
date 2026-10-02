@@ -22,6 +22,19 @@ function extrairPackageId(itemBusca) {
   return null;
 }
 
+// Verifica se o jogo já tem todas as informações essenciais preenchidas
+function estaCompleto(jogo) {
+  return (
+    jogo.foto &&
+    jogo.screenshots &&
+    jogo.screenshots.length > 0 &&
+    jogo.categoria &&
+    jogo.peso &&
+    jogo.peso !== 'Varia com o dispositivo' &&
+    jogo.package_id
+  );
+}
+
 async function extrairEAtualizarFirebase() {
   try {
     console.log(`📡 Conectando ao Firebase...`);
@@ -35,10 +48,17 @@ async function extrairEAtualizarFirebase() {
     }
 
     const idsJogos = Object.keys(jogosFirebase);
-    console.log(`📋 Encontrados ${idsJogos.length} jogos no Firebase para atualizar.\n`);
+    console.log(`📋 Encontrados ${idsJogos.length} jogos no Firebase para verificar.\n`);
 
     for (const idJogo of idsJogos) {
       const jogoLocal = jogosFirebase[idJogo];
+
+      // REGRA: Se o jogo já tiver tudo 100% preenchido, pula para não gastar recursos
+      if (estaCompleto(jogoLocal)) {
+        console.log(`⏭️ Jogo "${idJogo}" já tem todas as informações completas no Firebase. Pulando...`);
+        continue;
+      }
+
       const termoBusca = jogoLocal.nome_playstore || jogoLocal.nome || idJogo.replace(/-/g, ' ');
 
       console.log(`==================================================`);
@@ -77,19 +97,24 @@ async function extrairEAtualizarFirebase() {
 
         const screenshotsList = (detalhes.screenshots || []).slice(0, 4);
 
+        // Tratamento para o Peso: se a Play Store não der em MB, define um padrão útil ou limpo
+        let pesoFinal = detalhes.size;
+        if (!pesoFinal || pesoFinal === 'Varia com o dispositivo') {
+          pesoFinal = jogoLocal.peso && jogoLocal.peso !== 'Varia com o dispositivo' ? jogoLocal.peso : 'Varia (Android)';
+        }
+
         const dadosAtualizados = {
-          foto: detalhes.icon || '',
-          screenshots: screenshotsList,
-          peso: detalhes.size || 'Varia com o dispositivo',
-          categoria: detalhes.genre || 'Jogos',
-          package_id: detalhes.appId,
-          playstore_link: detalhes.url || '',
+          foto: jogoLocal.foto || detalhes.icon || '',
+          screenshots: (jogoLocal.screenshots && jogoLocal.screenshots.length > 0) ? jogoLocal.screenshots : screenshotsList,
+          peso: pesoFinal,
+          categoria: jogoLocal.categoria || detalhes.genre || 'Jogos',
+          package_id: jogoLocal.package_id || detalhes.appId,
+          playstore_link: jogoLocal.playstore_link || detalhes.url || '',
           ultima_extracao: new Date().toISOString()
         };
 
-        console.log(`✅ Extraído: ${detalhes.title}`);
-        console.log(`   🖼️ Capa HD: ${dadosAtualizados.foto}`);
-        console.log(`   📸 Screenshots: ${screenshotsList.length} salvas`);
+        console.log(`✅ Atualizando: ${detalhes.title}`);
+        console.log(`   📦 Peso final: ${dadosAtualizados.peso}`);
 
         // Atualização PATCH no Firebase
         await axios.patch(getFirebaseUrl(`/jogos/${idJogo}`), dadosAtualizados);
@@ -100,7 +125,7 @@ async function extrairEAtualizarFirebase() {
       }
     }
 
-    console.log(`🎉 EXTRAÇÃO 100% CONCLUÍDA PARA TODOS OS JOGOS!`);
+    console.log(`🎉 VERIFICAÇÃO E EXTRAÇÃO CONCLUÍDAS COM SUCESSO!`);
 
   } catch (err) {
     console.error(`❌ Erro geral no Firebase:`, err.response?.data || err.message);
