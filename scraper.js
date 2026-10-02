@@ -1,18 +1,32 @@
 import gplay from 'google-play-scraper';
 import axios from 'axios';
 
-// URL do teu Firebase Realtime Database
-const FIREBASE_URL = 'https://meublog-apks-default-rtdb.firebaseio.com';
+// URL base do Realtime Database
+const FIREBASE_BASE_URL = 'https://meublog-apks-default-rtdb.firebaseio.com';
+const FIREBASE_AUTH_SECRET = process.env.FIREBASE_SECRET || '';
 
-// Simulação de navegação via Samsung S23 5G
 const USER_AGENT_S23 = 'Mozilla/5.0 (Linux; Android 14; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.105 Mobile Safari/537.36';
+
+function getFirebaseUrl(path) {
+  const authParam = FIREBASE_AUTH_SECRET ? `?auth=${FIREBASE_AUTH_SECRET}` : '';
+  return `${FIREBASE_BASE_URL}${path}.json${authParam}`;
+}
+
+function extrairPackageId(itemBusca) {
+  if (itemBusca.id) return itemBusca.id;
+  if (itemBusca.appId) return itemBusca.appId;
+  if (itemBusca.url) {
+    const match = itemBusca.url.match(/id=([^&]+)/);
+    if (match) return match[1];
+  }
+  return null;
+}
 
 async function extrairEAtualizarFirebase() {
   try {
-    console.log(`📡 Conectando ao Firebase para buscar a lista de jogos...`);
+    console.log(`📡 Conectando ao Firebase...`);
     
-    // 1. Lê todos os jogos já cadastrados no teu Firebase
-    const res = await axios.get(`${FIREBASE_URL}/jogos.json`);
+    const res = await axios.get(getFirebaseUrl('/jogos'));
     const jogosFirebase = res.data;
 
     if (!jogosFirebase) {
@@ -23,20 +37,16 @@ async function extrairEAtualizarFirebase() {
     const idsJogos = Object.keys(jogosFirebase);
     console.log(`📋 Encontrados ${idsJogos.length} jogos no Firebase para atualizar.\n`);
 
-    // 2. Percorre cada jogo dinamicamente
     for (const idJogo of idsJogos) {
       const jogoLocal = jogosFirebase[idJogo];
-      
-      // Usa o 'nome_playstore' se existir, ou o 'nome', ou ajusta o próprio ID
       const termoBusca = jogoLocal.nome_playstore || jogoLocal.nome || idJogo.replace(/-/g, ' ');
 
       console.log(`==================================================`);
       console.log(`🔎 Processando ID: "${idJogo}"`);
-      console.log(`🔍 Termo de Busca na Play Store: "${termoBusca}"`);
+      console.log(`🔍 Termo de Busca: "${termoBusca}"`);
       console.log(`==================================================`);
 
       try {
-        // Busca na Play Store simulando S23 5G
         const busca = await gplay.search({
           term: termoBusca,
           num: 1,
@@ -52,50 +62,48 @@ async function extrairEAtualizarFirebase() {
           continue;
         }
 
-        // Correção do ID retornado pela pesquisa
-        const packageId = busca[0].id || busca[0].appId;
+        const targetAppId = extrairPackageId(busca[0]);
 
-        // Pega detalhes completos da página do jogo
+        if (!targetAppId) {
+          console.error(`❌ Não foi possível determinar o Package ID de "${termoBusca}"`);
+          continue;
+        }
+
         const detalhes = await gplay.app({
-          appId: packageId,
+          appId: targetAppId,
           country: 'br',
           lang: 'pt'
         });
 
-        // Seleciona de 3 a 4 screenshots em HD
         const screenshotsList = (detalhes.screenshots || []).slice(0, 4);
 
-        // Monta os dados atualizados para merge no Firebase
         const dadosAtualizados = {
-          foto: detalhes.icon,                         // Capa / Ícone real HD
-          screenshots: screenshotsList,               // 3 a 4 screenshots
-          peso: detalhes.size || 'Varia com o dispositivo', // Peso real
-          categoria: detalhes.genre || 'Jogos',        // Categoria real
-          package_id: detalhes.appId,                  // Package oficial
-          playstore_link: detalhes.url,               // Link oficial
+          foto: detalhes.icon || '',
+          screenshots: screenshotsList,
+          peso: detalhes.size || 'Varia com o dispositivo',
+          categoria: detalhes.genre || 'Jogos',
+          package_id: detalhes.appId,
+          playstore_link: detalhes.url || '',
           ultima_extracao: new Date().toISOString()
         };
 
-        console.log(`✅ Dados Extraídos:`);
-        console.log(`   📛 Jogo Encontrado: ${detalhes.title}`);
+        console.log(`✅ Extraído: ${detalhes.title}`);
         console.log(`   🖼️ Capa HD: ${dadosAtualizados.foto}`);
         console.log(`   📸 Screenshots: ${screenshotsList.length} salvas`);
-        console.log(`   📂 Categoria: ${dadosAtualizados.categoria}`);
-        console.log(`   📦 Peso: ${dadosAtualizados.peso}`);
 
-        // Atualiza apenas os campos extraídos no mesmo ID sem apagar teus recursos/mod/fatureseo
-        await axios.patch(`${FIREBASE_URL}/jogos/${idJogo}.json`, dadosAtualizados);
-        console.log(`🚀 Sucesso: Nó /jogos/${idJogo} atualizado no Firebase!\n`);
+        // Atualização PATCH no Firebase
+        await axios.patch(getFirebaseUrl(`/jogos/${idJogo}`), dadosAtualizados);
+        console.log(`🚀 Sucesso! Nó /jogos/${idJogo} atualizado no Firebase.\n`);
 
       } catch (errJogo) {
-        console.error(`❌ Erro ao extrair "${termoBusca}":`, errJogo.message, '\n');
+        console.error(`❌ Erro em "${termoBusca}":`, errJogo.response?.data || errJogo.message, '\n');
       }
     }
 
-    console.log(`🎉 Processo de extração concluído para todos os jogos!`);
+    console.log(`🎉 EXTRAÇÃO 100% CONCLUÍDA PARA TODOS OS JOGOS!`);
 
   } catch (err) {
-    console.error(`❌ Erro geral na conexão com Firebase:`, err.message);
+    console.error(`❌ Erro geral no Firebase:`, err.response?.data || err.message);
   }
 }
 
