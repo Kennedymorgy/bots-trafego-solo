@@ -1,30 +1,25 @@
-name: 1. Extrator Play Store (Completar Firebase)
+name: Executar Scraper Diário
 
 on:
-  workflow_dispatch:
-    inputs:
-      id_jogo:
-        description: 'ID do jogo no Firebase (ex: 8-ball-pool, fr-legends)'
-        required: true
-        default: '8-ball-pool'
+  schedule:
+    - cron: '0 0 * * *' # Executa diariamente à meia-noite (UTC)
+  workflow_dispatch: # Permite rodar manualmente no GitHub
 
 jobs:
-  extrair-e-salvar:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout do Código
-        uses: actions/checkout@v3
+      - name: Baixar código do repositório
+        uses: actions/checkout@v4
 
-      - name: Configurar Node.js
-        uses: actions/setup-node@v3
+      - name: Configurar Node.js (v20 LTS)
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
-      - name: Instalar Dependências
-        run: npm install google-play-scraper axios
+      - name: Instalar dependências
+        run: npm install
 
-      - name: Executar Extrator Inteligente
-        env:
-          ID_JOGO: ${{ github.event.inputs.id_jogo }}
+      - name: Executar Scraper
         run: node scraper.js
