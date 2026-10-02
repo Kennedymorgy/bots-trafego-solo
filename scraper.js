@@ -5,8 +5,7 @@ const axios = require('axios');
 const FIREBASE_URL = 'https://meublog-apks-default-rtdb.firebaseio.com';
 
 /**
- * Mapeamento rápido de IDs para Pacotes da Play Store
- * Adiciona aqui os novos jogos conforme fores precisando!
+ * Mapeamento de Pacotes da Play Store e Recursos
  */
 const MAPEAMENTO_JOGOS = {
   '8-ball-pool': {
@@ -49,14 +48,11 @@ const MAPEAMENTO_JOGOS = {
   }
 };
 
-/**
- * Função inteligente para extrair e enriquecer os dados do jogo no Firebase
- */
 async function extrairECompletarFirebase(idJogo) {
   const configJogo = MAPEAMENTO_JOGOS[idJogo];
 
   if (!configJogo) {
-    console.error(`❌ ERRO: O ID "${idJogo}" não foi configurado no mapeamento do scraper.js.`);
+    console.error(`❌ ERRO: O ID "${idJogo}" não foi configurado no mapeamento.`);
     return;
   }
 
@@ -66,57 +62,54 @@ async function extrairECompletarFirebase(idJogo) {
   console.log(`==================================================`);
 
   try {
-    // 1. Busca dados completos na Play Store em PT-BR
+    // 1. Busca dados reais da Play Store em PT-BR
     const appData = await gplay.app({ appId: configJogo.packageId, lang: 'pt', country: 'br' });
 
-    // 2. Formata screenshots (pega as 4 primeiras em alta resolução)
+    // 2. Seleciona as 4 primeiras screenshots reais em alta resolução
     const screenshotsList = (appData.screenshots || []).slice(0, 4);
 
-    // 3. Organiza os Marcadores/Tags inteligentes para o Blogger
+    // 3. Monta os Marcadores (Tags) para o Blogger
     const marcadores = [
       appData.title,
       appData.genre || 'Jogos',
       'Mod APK',
       configJogo.tipoMod,
       configJogo.modoConexao
-    ].filter((val, index, self) => val && self.indexOf(val) === index); // Remove duplicados
+    ].filter((val, index, self) => val && self.indexOf(val) === index);
 
-    // 4. Monta o pacote completo para OTIMIZAR o Firebase
+    // 4. Monta os dados para completar o Firebase com fotos REAIS
     const dadosOtimizados = {
       nome_oficial: appData.title,
-      foto: appData.icon,                          // Foto REAL do jogo (ícone HD)
-      peso: appData.size || '178 MB',               // Tamanho do APK
-      categoria: appData.genre || 'Jogos',         // Categoria real
+      foto: appData.icon,                          // Foto REAL do jogo (ícone HD da Play Store)
+      peso: appData.size || '178 MB',               // Tamanho do jogo
+      categoria: appData.genre || 'Jogos',         // Categoria real (Ação, Esportes, etc.)
       tipo_mod: configJogo.tipoMod,               // Ex: Cheto MOD APK, MOD Menu
       modo_conexao: configJogo.modoConexao,       // Online / Offline / App
-      playstore_link: appData.url,                // Link oficial Play Store
-      recursos_mod: configJogo.recursos,          // Lista de recursos
-      screenshots: screenshotsList,               // Capturas de tela reais
+      playstore_link: appData.url,                // Link oficial
+      recursos_mod: configJogo.recursos,          // Lista de funções do MOD
+      screenshots: screenshotsList,               // Screenshots do jogo
       marcadores_sugeridos: marcadores,           // Tags preparadas
       extracao_status: 'COMPLETO',
       ultima_extracao: new Date().toISOString()
     };
 
-    console.log(`✅ DADOS EXTRAÍDOS COM SUCESSO DA PLAY STORE:`);
+    console.log(`✅ DADOS EXTRAÍDOS DA PLAY STORE:`);
     console.log(`   🖼️ Foto Real: ${dadosOtimizados.foto}`);
     console.log(`   📂 Categoria: ${dadosOtimizados.categoria}`);
     console.log(`   📦 Peso: ${dadosOtimizados.peso}`);
-    console.log(`   📸 Screenshots: ${screenshotsList.length} salvas`);
-    console.log(`   🏷️ Marcadores: ${marcadores.join(', ')}`);
+    console.log(`   📸 Screenshots: ${screenshotsList.length} capturadas`);
 
-    // 5. Atualização via PATCH para NÃO apagar links ou dados existentes no Firebase
+    // 5. Atualização no Firebase via PATCH (Preserva teus links e dados que já lá estão)
     console.log(`🚀 Atualizando chave /jogos/${idJogo}.json no Firebase...`);
     await axios.patch(`${FIREBASE_URL}/jogos/${idJogo}.json`, dadosOtimizados);
 
-    console.log(`🎉 SUCESSO! O Firebase do jogo "${idJogo}" está 100% completo e enriquecido!`);
+    console.log(`🎉 SUCESSO! O Firebase do jogo "${idJogo}" está 100% completo!`);
 
   } catch (err) {
     console.error(`❌ ERRO na extração do jogo (${idJogo}):`, err.message);
   }
 }
 
-// =========================================================================
-// EXECUÇÃO INTELIGENTE (Via parâmetro do terminal ou do GitHub Actions)
-// =========================================================================
+// Executa com base no parâmetro enviado
 const idJogoTarget = process.env.ID_JOGO || process.argv[2] || '8-ball-pool';
 extrairECompletarFirebase(idJogoTarget);
