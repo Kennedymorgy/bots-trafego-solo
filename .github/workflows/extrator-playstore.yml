@@ -1,25 +1,25 @@
-name: Executar Scraper Diário
+name: 1. Extrator Play Store (Atualizar Firebase)
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Executa diariamente à meia-noite (UTC)
-  workflow_dispatch: # Permite rodar manualmente no GitHub
+    - cron: '0 0 * * *' # Roda diariamente
+  workflow_dispatch: # Permite rodar manualmente a qualquer hora
 
 jobs:
-  build:
+  extrair:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Baixar código do repositório
+      - name: Baixar Código
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js (v20 LTS)
+      - name: Configurar Node.js (v20)
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Instalar dependências
+      - name: Instalar Dependências
         run: npm install
 
-      - name: Executar Scraper
+      - name: Executar Extrator
         run: node scraper.js
