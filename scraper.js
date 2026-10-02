@@ -1,4 +1,3 @@
-const gplay = require('google-play-scraper');
 const axios = require('axios');
 
 // URL do teu Firebase Realtime Database
@@ -49,10 +48,14 @@ const MAPEAMENTO_JOGOS = {
 };
 
 async function extrairECompletarFirebase(idJogo) {
+  // Importação dinâmica para evitar o erro ERR_REQUIRE_ESM
+  const gplayModule = await import('google-play-scraper');
+  const gplay = gplayModule.default || gplayModule;
+
   const configJogo = MAPEAMENTO_JOGOS[idJogo];
 
   if (!configJogo) {
-    console.error(`❌ ERRO: O ID "${idJogo}" não foi configurado no mapeamento.`);
+    console.error(`❌ ERRO: O ID "${idJogo}" não foi configurado no mapeamento do scraper.js.`);
     return;
   }
 
@@ -80,7 +83,7 @@ async function extrairECompletarFirebase(idJogo) {
     // 4. Monta os dados para completar o Firebase com fotos REAIS
     const dadosOtimizados = {
       nome_oficial: appData.title,
-      foto: appData.icon,                          // Foto REAL do jogo (ícone HD da Play Store)
+      foto: appData.icon,                          // Foto REAL do jogo (ícone HD)
       peso: appData.size || '178 MB',               // Tamanho do jogo
       categoria: appData.genre || 'Jogos',         // Categoria real (Ação, Esportes, etc.)
       tipo_mod: configJogo.tipoMod,               // Ex: Cheto MOD APK, MOD Menu
