@@ -1,5 +1,5 @@
-const axios = require('axios');
-const { google } = require('googleapis');
+import axios from 'axios';
+import { google } from 'googleapis';
 
 const BLOG_ID = '2435792559888581201';
 const FIREBASE_BASE_URL = 'https://meublog-apks-default-rtdb.firebaseio.com';
@@ -21,12 +21,13 @@ const blogger = google.blogger({ version: 'v3', auth: oauth2Client });
 // Função para notificar a Google Indexing API
 async function notificarGoogleIndexing(urlPost) {
   try {
-    if (!process.env.GOOGLE_INDEXING_CREDENTIALS) {
-      console.log('⚠️️ Secret GOOGLE_INDEXING_CREDENTIALS não configurada.');
+    const credsRaw = process.env.GOOGLE_INDEXING_CREDENTIALS || process.env.GOOGLE_INDEXING;
+    if (!credsRaw) {
+      console.log('⚠️ Secret de credenciais da Google Indexing API não configurada.');
       return;
     }
 
-    const serviceAccountKey = JSON.parse(process.env.GOOGLE_INDEXING_CREDENTIALS);
+    const serviceAccountKey = JSON.parse(credsRaw);
 
     const jwtClient = new google.auth.JWT(
       serviceAccountKey.client_email,
@@ -201,7 +202,7 @@ async function executarPostagem() {
       const urlPublicada = response.data.url;
       console.log(`🚀 Publicado com sucesso! URL: ${urlPublicada}`);
 
-      // Notifica o Google Indexing API imediatamente após criar o post
+      // Notifica a Google Indexing API imediatamente após criar o post
       await notificarGoogleIndexing(urlPublicada);
 
       // Atualiza o Firebase marcando que o post foi criado
