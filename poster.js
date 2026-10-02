@@ -7,7 +7,7 @@ const WORKER_BASE = 'https://orange-star-d066.claudiokennedymorgy.workers.dev';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Configuração do OAuth2 para o Blogger
+// Configuração do OAuth2 do Google
 const oauth2Client = new google.auth.OAuth2(
   process.env.CLIENT_ID,
   process.env.CLIENT_SECRET,
@@ -20,7 +20,7 @@ oauth2Client.setCredentials({
 
 const blogger = google.blogger({ version: 'v3', auth: oauth2Client });
 
-// Notificação para Google Indexing API
+// Google Indexing API
 async function notificarGoogleIndexing(urlPost) {
   try {
     const credsRaw = process.env.GOOGLE_INDEXING_CREDENTIALS || process.env.GOOGLE_INDEXING;
@@ -47,86 +47,77 @@ async function notificarGoogleIndexing(urlPost) {
         },
       }
     );
-    console.log(`📡 Google Indexing notificada para: ${urlPost}`);
+    console.log(`📡 Google Indexing API notificada: ${urlPost}`);
   } catch (err) {
     console.error(`❌ Erro Google Indexing:`, err.message);
   }
 }
 
-// Mapeamento Inteligente de Categorias e Modos (Online / Offline)
-function analisarModoEGrupo(nomeJogo, categoriaFirebase) {
-  const nomeLower = (nomeJogo || '').toLowerCase();
-  
-  // Identificação de Jogos Online
-  const jogosOnline = ['8 ball pool', 'clash of clans', 'free fire', 'roblox', 'avakin life', 'eFootball', 'brawl stars', 'pubg'];
-  const eOnline = jogosOnline.some(j => nomeLower.includes(j));
-  const modoJogo = eOnline ? 'Online' : 'Offline';
-
-  // Identificação de Categoria
-  let categoria = categoriaFirebase || 'Jogos';
-  if (nomeLower.includes('fr legends') || nomeLower.includes('racing') || nomeLower.includes('car')) categoria = 'Corrida';
-  else if (nomeLower.includes('pool') || nomeLower.includes('football') || nomeLower.includes('soccer')) categoria = 'Esportes';
-  else if (nomeLower.includes('clash') || nomeLower.includes('strategy')) categoria = 'Estratégia';
-  else if (nomeLower.includes('tekken') || nomeLower.includes('fight') || nomeLower.includes('naruto')) categoria = 'Luta';
-  else if (nomeLower.includes('subway') || nomeLower.includes('run')) categoria = 'Ação';
-
-  return { modoJogo, categoria };
-}
-
-// Extração Inteligente de Recursos do MOD por Jogo
-function obterRecursosInteligentes(jogo, nomeJogo) {
-  // 1. Se já existirem recursos específicos cadastrados no Firebase para o jogo
+// Trata os Recursos da Caixinha salvos no Firebase
+function obterRecursosDoFirebase(jogo) {
   if (jogo.recursos_mod) {
     if (Array.isArray(jogo.recursos_mod) && jogo.recursos_mod.length > 0) {
-      return jogo.recursos_mod;
+      return jogo.recursos_mod.map(r => String(r).trim()).filter(r => r !== '');
     }
     if (typeof jogo.recursos_mod === 'string' && jogo.recursos_mod.trim() !== '') {
-      return jogo.recursos_mod.split(',').map(s => s.trim());
+      return jogo.recursos_mod.split(',').map(r => r.trim()).filter(r => r !== '');
     }
   }
-
-  // 2. Análise inteligente por nome de jogo caso o Firebase não tenha o campo
-  const n = (nomeJogo || '').toLowerCase();
-
-  if (n.includes('fr legends')) {
-    return ['Dinheiro Ilimitado / Infinite Money', 'Todos os Carros Desbloqueados', 'Pistas Liberadas', 'Mod Menu Ativo'];
-  }
-  if (n.includes('8 ball pool')) {
-    return ['Linha Guia Longa (Mira Estendida)', 'Anti-Ban Integrado', 'Sem Anúncios', 'Mod Menu Atualizado'];
-  }
-  if (n.includes('subway surfers')) {
-    return ['Chaves e Moedas Ilimitadas', 'Pulo Infinito (Multi-Jump)', 'Todos os Personagens Liberados', 'Pranchas Desbloqueadas'];
-  }
-  if (n.includes('football league') || n.includes('soccer')) {
-    return ['Jogadores e Times Desbloqueados', 'Sem Anúncios', 'Recursos Ilimitados', 'Mod Menu Funcional'];
-  }
-  if (n.includes('clash of clans')) {
-    return ['Gemas e Ouro Ilimitados', 'Servidor Privado / Private Server', 'Elixir Infinito', 'Comandos do Mod Ativos'];
-  }
-  if (n.includes('avakin life')) {
-    return ['Mod Menu Ativo', 'Roupas / Itens Visíveis Unlocked', 'XP Booster', 'Anti-Ban Atualizado'];
-  }
-
-  // Fallback com visual limpo
-  return [
-    'Mod Menu com Funções Ativas',
-    'Recursos / Dinheiro Ilimitado',
-    'Sem Anúncios (No Ads)',
-    'Proteção Anti-Ban Integrada'
-  ];
+  return ['Mod Menu Atualizado', 'Recursos Ilimitados', 'Sem Anúncios', 'Anti-Ban Integrado'];
 }
 
-// Gerador de Título Otimizado e Humanizado
-function gerarTituloInteligente(nomeJogo, versao, recursos) {
+// Analisa e define Marcadores Únicos e Inteligentes
+function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
+  const marcadores = new Set();
+  const textoCompleto = `${nomeJogo} ${recursos.join(' ')}`.toLowerCase();
+
+  // 1. Nome do Jogo
+  marcadores.add(nomeJogo);
+
+  // 2. Categoria / Gênero
+  if (jogo.categoria) {
+    marcadores.add(jogo.categoria.trim());
+  } else {
+    marcadores.add('Jogos');
+  }
+
+  // 3. Tipo de MOD (Apenas 1 Principal: MOD MENU ou MOD APK)
+  const temModMenu = textoCompleto.includes('mod menu') || textoCompleto.includes('menu');
+  if (temModMenu) {
+    marcadores.add('MOD MENU');
+  } else {
+    marcadores.add('MOD APK');
+  }
+
+  // 4. Modo de Jogo (Offline ou Online)
+  const eOnline = ['online', 'multiplayer', 'pvp', 'server'].some(k => textoCompleto.includes(k));
+  const eOffline = ['offline', 'sem internet', 'singleplayer'].some(k => textoCompleto.includes(k));
+
+  if (eOnline && eOffline) {
+    marcadores.add('Online');
+    marcadores.add('Offline');
+  } else if (eOnline) {
+    marcadores.add('Online');
+  } else {
+    marcadores.add('Offline'); // Padrão
+  }
+
+  return Array.from(marcadores);
+}
+
+// Gerador de Título Otimizado (Até 10 Funções no Título)
+function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
     vFormatada = 'v' + vFormatada;
   }
 
-  const destaqueMod = recursos[0] || 'Mod Menu';
-  const segundoDestaque = recursos[1] || 'Atualizado';
+  const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
+  
+  // Pega até 10 funções da caixinha para o título
+  const funcoesTitulo = recursos.slice(0, 10).join(' / ');
 
-  return `${nomeJogo} MOD APK ${vFormatada} (${destaqueMod} / ${segundoDestaque})`;
+  return `${nomeJogo} ${tagMod} ${vFormatada} (${funcoesTitulo})`;
 }
 
 function gerarModTagsHTML(recursos) {
@@ -138,7 +129,7 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
-function construirHTMLPost(jogo, idJogo, recursos, modoJogo, categoria) {
+function construirHTMLPost(jogo, idJogo, recursos) {
   const nomeJogo = jogo.nome || idJogo.replace(/-/g, ' ');
   const versao = jogo.versao || '';
   const capa = jogo.foto || '';
@@ -181,31 +172,31 @@ ${gerarScreenshotsHTML(screenshots)}
 <div class="seo-content-box">
 
 <h2>Sobre o ${nomeJogo} MOD APK <span class="cyanPostVersionDisplay">${versao}</span></h2>
-<p>Baixe agora a versão mais recente do <strong>${nomeJogo} MOD APK</strong> totalmente atualizada para Android. Esta modificação conta com recursos exclusivos, desempenho otimizado e jogabilidade (${modoJogo}) liberada.</p>
+<p>Se você procura a versão atualizada do <strong>${nomeJogo} MOD APK</strong> para Android, chegou ao lugar certo. Baixe a versão com Mod Menu ativo e recursos liberados para garantir a melhor experiência de jogo.</p>
 
 <div class="seo-alert-box">
-<strong>Dica Importante:</strong> Caso tenha a versão original instalada, desinstale-a antes de realizar a instalação deste arquivo MOD para garantir o funcionamento correto.
+<strong>Dica de Instalação:</strong> Certifique-se de desinstalar qualquer versão anterior do ${nomeJogo} antes de instalar esta modificação para evitar erros de conflito.
 </div>
 
-<h2>Destaques do Mod Menu</h2>
+<h2>Principais Recursos do Mod Menu</h2>
 <ul>
-${recursos.map(rec => `<li><strong>${rec}:</strong> Recurso ativo e totalmente funcional.</li>`).join('\n')}
+${recursos.map(rec => `<li><strong>${rec}:</strong> Recursos ativados e funcionais nesta versão.</li>`).join('\n')}
 </ul>
 
-<h2>Informações Técnicas & Como Instalar</h2>
-<p>O aplicativo pesa cerca de <strong>${peso}</strong>, roda em modo <strong>${modoJogo}</strong> e é compatível com Android 5.0 ou superior.</p>
+<h2>Requisitos e Como Instalar no Android</h2>
+<p>O arquivo possui tamanho aproximado de <strong>${peso}</strong> e requer Android 5.0 ou superior. Siga os passos para instalar:</p>
 <ol>
-<li>Clique no botão de download acima para baixar o arquivo APK.</li>
-<li>Permita a instalação de <em>Fontes Desconhecidas</em> nas configurações do dispositivo.</li>
-<li>Abra o instalador, conclua a instalação e aproveite o jogo!</li>
+<li>Faça o download do arquivo clicando no botão de download acima.</li>
+<li>Ative a opção <em>Fontes Desconhecidas</em> nas configurações de segurança do seu celular.</li>
+<li>Instale o arquivo APK baixado e divirta-se!</li>
 </ol>
 
-<h2>Perguntas Frequentes</h2>
-<p><strong>É necessário acesso Root?</strong><br/>
-Não. O jogo funciona perfeitamente em dispositivos padrão sem Root.</p>
+<h2>Perguntas Frequentes (FAQ)</h2>
+<p><strong>O Mod precisa de Root no celular?</strong><br/>
+Não! Funciona perfeitamente em qualquer dispositivo Android sem necessidade de Root.</p>
 
-<p><strong>Como receber novas atualizações?</strong><br/>
-Guarde o nosso site nos seus favoritos para baixar novas versões assim que forem lançadas!</p>
+<p><strong>Como atualizar o jogo no futuro?</strong><br/>
+Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que forem lançadas.</p>
 
 </div>`;
 }
@@ -217,7 +208,7 @@ async function executarPostagem() {
     const jogos = res.data;
 
     if (!jogos) {
-      console.log('⚠️ Nenhum jogo pendente para postagem.');
+      console.log('⚠️ Nenhum jogo encontrado no Firebase.');
       return;
     }
 
@@ -230,30 +221,20 @@ async function executarPostagem() {
       }
 
       const nomeJogo = jogo.nome || idJogo.replace(/-/g, ' ');
-      console.log(`\n🤖 Processando postagem inteligente para: "${nomeJogo}"...`);
+      console.log(`\n🤖 Processando postagem para o ID Exato: "${idJogo}"...`);
 
-      // 1. Análise de Categoria e Modo de Jogo
-      const { modoJogo, categoria } = analisarModoEGrupo(nomeJogo, jogo.categoria);
+      // 1. Obtém as funções reais vindas da sua caixinha no Firebase
+      const recursos = obterRecursosDoFirebase(jogo);
 
-      // 2. Extração Dinâmica de Recursos do Mod
-      const recursos = obterRecursosInteligentes(jogo, nomeJogo);
+      // 2. Define os marcadores sem repetir tags
+      const labels = definirMarcadoresInteligentes(nomeJogo, jogo, recursos);
+      const ehModMenu = labels.includes('MOD MENU');
 
-      // 3. Geração do Título SEO
-      const tituloPost = gerarTituloInteligente(nomeJogo, jogo.versao, recursos);
+      // 3. Cria o título puxando até 10 funções da caixinha
+      const tituloPost = gerarTituloInteligente(nomeJogo, jogo.versao, recursos, ehModMenu);
 
-      // 4. Criação Dinâmica de Marcadores (Labels)
-      const marcadoresSet = new Set([
-        nomeJogo,
-        categoria,
-        modoJogo,
-        'MOD APK',
-        'Mod Menu',
-        'Android'
-      ]);
-      const labels = Array.from(marcadoresSet);
-
-      // 5. Construção do HTML do Post
-      const htmlPost = construirHTMLPost(jogo, idJogo, recursos, modoJogo, categoria);
+      // 4. Monta o HTML com tags ocultas e h2
+      const htmlPost = construirHTMLPost(jogo, idJogo, recursos);
 
       try {
         const response = await blogger.posts.insert({
@@ -266,26 +247,26 @@ async function executarPostagem() {
         });
 
         const urlPublicada = response.data.url;
-        console.log(`🚀 Post Criado com Sucesso!`);
+        console.log(`🚀 Post Publicado com Sucesso!`);
         console.log(`📌 Título: ${tituloPost}`);
         console.log(`🏷️ Marcadores: ${labels.join(', ')}`);
         console.log(`🔗 URL: ${urlPublicada}`);
 
-        // 6. Indexação no Google
+        // Indexação no Google
         await notificarGoogleIndexing(urlPublicada);
 
-        // 7. Atualização no Firebase
+        // Marca como postado no Firebase
         await axios.patch(`${FIREBASE_BASE_URL}/jogos/${idJogo}.json`, {
           postado_blogger: true,
           blogger_post_id: response.data.id,
           post_url: urlPublicada
         });
 
-        console.log(`✅ Registro salvo no Firebase para "${idJogo}".`);
+        console.log(`✅ Marcado como postado no Firebase para "${idJogo}".`);
 
       } catch (errBlogger) {
         if (errBlogger.response && errBlogger.response.status === 429) {
-          console.error(`⚠️ Cota da API do Blogger atingida (429). Interrompendo execução temporariamente.`);
+          console.error(`⚠️ Cota da API do Blogger atingida (429). Interrompendo execução.`);
           break;
         } else {
           console.error(`❌ Erro ao postar "${idJogo}":`, errBlogger.message);
@@ -296,10 +277,10 @@ async function executarPostagem() {
       await sleep(5000);
     }
 
-    console.log('\n🎉 Todas as postagens foram finalizadas com sucesso!');
+    console.log('\n🎉 Todas as postagens foram concluídas!');
 
   } catch (error) {
-    console.error('❌ Erro geral no robô de postagem:', error.response ? error.response.data : error.message);
+    console.error('❌ Erro geral no robô:', error.response ? error.response.data : error.message);
     process.exit(1);
   }
 }
