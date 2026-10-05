@@ -139,51 +139,8 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
-// Chamada para API com fallback de modelos estáveis
-async function chamarGeminiComFallbackModelos(prompt) {
-  const rawKey = process.env.GEMINI_API_KEY || process.env.GEMINI_KEY || '';
-  const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
-
-  if (!apiKey) {
-    console.log('⚠️ Secret GEMINI_API_KEY não encontrada no GitHub Secrets!');
-    return null;
-  }
-
-  // Lista de modelos padrão estáveis da API do Gemini
-  const modelos = [
-    'gemini-1.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-pro'
-  ];
-
-  for (const modelo of modelos) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
-      const res = await axios.post(
-        url,
-        { contents: [{ parts: [{ text: prompt }] }] },
-        {
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 10000
-        }
-      );
-
-      const texto = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (texto) {
-        console.log(`✨ IA respondeu via modelo: ${modelo}`);
-        return texto;
-      }
-    } catch (err) {
-      const status = err.response?.status || 'Erro';
-      console.log(`⚠️️ Modelo "${modelo}" indisponível (${status}). Tentando próximo...`);
-    }
-  }
-
-  return null;
-}
-
-// Descrição de Pesquisa (SEO)
-async function gerarDescricaoPesquisaComIA(nomeJogo, versao, recursos, ehModMenu) {
+// Bot Inteligente para Descrição de Pesquisa (SEO)
+function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
     vFormatada = 'v' + vFormatada;
@@ -191,84 +148,85 @@ async function gerarDescricaoPesquisaComIA(nomeJogo, versao, recursos, ehModMenu
 
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
-
-  const prompt = `Crie uma Meta Descrição SEO com no máximo 145 caracteres para "${nomeLimpo}" ${tagMod} ${vFormatada}.`;
-
-  const respostaIA = await chamarGeminiComFallbackModelos(prompt);
-
-  if (respostaIA) {
-    let textoDesc = respostaIA.replace(/[\r\n"']/g, '').replace(/\s+/g, ' ').trim();
-    if (textoDesc.length > 150) {
-      textoDesc = textoDesc.substring(0, 147) + '...';
-    }
-    return textoDesc;
-  }
-
-  // Bot Fallback (Sem IA)
-  console.log('🤖 Gerando Descrição SEO via Bot...');
   const funcoesStr = recursos.slice(0, 2).join(' e ');
-  let fallback = `Baixar ${nomeLimpo} ${tagMod} ${vFormatada} com ${funcoesStr} para Android. Download grátis e seguro!`;
-  fallback = fallback.replace(/\s+/g, ' ').trim();
-  if (fallback.length > 150) {
-    fallback = fallback.substring(0, 147) + '...';
+
+  let desc = `Baixar ${nomeLimpo} ${tagMod} ${vFormatada} com ${funcoesStr} para Android. Download grátis, seguro e atualizado!`;
+  desc = desc.replace(/\s+/g, ' ').trim();
+  if (desc.length > 150) {
+    desc = desc.substring(0, 147) + '...';
   }
-  return fallback;
+  return desc;
 }
 
-// Bloco SEO de Conteúdo
-async function gerarConteudoSEOComIA(nomeJogo, peso, recursos) {
-  const nomeLimpo = limparNomeJogo(nomeJogo);
+// Bot Inteligente para Traduzir/Explicar cada Recurso com Sentido Lógico
+function interpretarRecursoParaSEO(recurso, nomeJogo) {
+  const recLower = recurso.toLowerCase();
 
-  const prompt = `Gere um bloco HTML <div class="seo-content-box"> simples e direto para o jogo "${nomeLimpo}" no Android.
-Tamanho: ${peso}
-Recursos: ${recursos.join(', ')}`;
-
-  const respostaIA = await chamarGeminiComFallbackModelos(prompt);
-
-  if (respostaIA) {
-    return respostaIA.replace(/```html/gi, '').replace(/```/g, '').trim();
+  if (recLower.includes('dinheiro') || recLower.includes('ouro') || recLower.includes('coins') || recLower.includes('grana')) {
+    return `Tenha dinheiro infinito para comprar carros, melhorias e itens livremente na loja do ${nomeJogo}.`;
+  }
+  if (recLower.includes('compra') || recLower.includes('in-app') || recLower.includes('gratuita')) {
+    return `Faça compras in-app totalmente gratuitas sem gastar nada do seu dinheiro real.`;
+  }
+  if (recLower.includes('carro') || recLower.includes('veículo') || recLower.includes('desbloqueado')) {
+    return `Todos os carros e veículos do jogo vêm completamente desbloqueados desde o início.`;
+  }
+  if (recLower.includes('mapa') || recLower.includes('fase') || recLower.includes('mundo')) {
+    return `Mapas, pistas e fases liberadas para você explorar sem restrições.`;
+  }
+  if (recLower.includes('anúncio') || recLower.includes('ads') || recLower.includes('sem anúncios')) {
+    return `Anúncios irritantes removidos para você jogar com total foco e fluidez.`;
+  }
+  if (recLower.includes('menu') || recLower.includes('mod menu')) {
+    return `Menu flutuante exclusivo ativável em tempo real diretamente na tela durante as partidas.`;
+  }
+  if (recLower.includes('munição') || recLower.includes('tiro') || recLower.includes('arma')) {
+    return `Munição infinita e armas liberadas para dominar os combates com facilidade.`;
+  }
+  if (recLower.includes('vida') || recLower.includes('imortal') || recLower.includes('god mode') || recLower.includes('hp')) {
+    return `Modo imortal e energia infinita para resistir a qualquer dano dos adversários.`;
   }
 
-  // Bot Fallback (Sem IA) - Estrutura Dinâmica e Automatizada
-  console.log('🤖 Gerando Conteúdo SEO via Bot...');
-  return gerarSEOTextoFallback(nomeLimpo, peso, recursos);
+  // Fallback genérico inteligente se não cair em nenhuma regra específica
+  return `Recurso "${recurso}" ativado e funcional para garantir a melhor experiência no ${nomeJogo}.`;
 }
 
-// Gerador Automático Local (Bot)
-function gerarSEOTextoFallback(nomeJogo, peso, recursos) {
+// Bot Inteligente para Gerar o Conteúdo SEO Completo e Contextualizado
+function gerarConteudoSEOBot(nomeJogo, peso, recursos) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
   
   const listaRecursosFormatada = recursos.map(rec => {
-    return `<li><strong>${rec}:</strong> Recurso totalmente desbloqueado para garantir a melhor experiência no jogo.</li>`;
+    const explicacao = interpretarRecursoParaSEO(rec, nomeLimpo);
+    return `<li><strong>${rec}:</strong> ${explicacao}</li>`;
   }).join('\n');
 
   return `<div class="seo-content-box">
 
 <h2>Sobre o ${nomeLimpo} MOD APK <span class="cyanPostVersionDisplay"></span></h2>
-<p>Se você procura a versão mais recente e otimizada do <strong>${nomeLimpo} MOD APK</strong> para Android, está no lugar certo. Esta modificação melhora o desempenho e libera opções para uma experiência completa no seu dispositivo.</p>
-<p>Aproveite todas as vantagens e recursos exclusivos totalmente liberados para o seu celular.</p>
+<p>Se você procura a versão mais recente e otimizada do <strong>${nomeLimpo} MOD APK</strong> para Android, está no lugar certo. Esta modificação melhora o desempenho geral e libera opções avançadas para uma experiência completa no seu dispositivo.</p>
+<p>Aproveite todas as vantagens, gráficos melhorados e recursos exclusivos totalmente liberados para se divertir ao máximo no seu celular.</p>
 
 <div class="seo-alert-box">
-<strong>Dica de Instalação:</strong> Certifique-se de desinstalar qualquer versão anterior do ${nomeLimpo} antes de instalar esta modificação para evitar erros de conflito.
+<strong>Dica de Instalação:</strong> Certifique-se de desinstalar qualquer versão anterior do ${nomeLimpo} antes de instalar esta modificação para evitar erros de conflito na instalação.
 </div>
 
 <h2>Principais Recursos do Mod Menu</h2>
-<p>Confira as vantagens ativas nesta versão modificada do ${nomeLimpo}:</p>
+<p>Confira todas as vantagens ativas nesta versão modificada do ${nomeLimpo}:</p>
 <ul>
 ${listaRecursosFormatada}
 </ul>
 
 <h2>Requisitos e Como Instalar no Android</h2>
-<p>O arquivo possui tamanho aproximado de <strong>${peso}</strong> e requer Android 5.0 ou superior. Siga os passos para instalar:</p>
+<p>O arquivo possui tamanho aproximado de <strong>${peso}</strong> e requer Android 5.0 ou superior. Siga os passos simples para instalar:</p>
 <ol>
-<li>Faça o download do arquivo clicando no botão de download acima.</li>
-<li>Ative a opção <em>Fontes Desconhecidas</em> nas configurações de segurança do seu celular.</li>
-<li>Instale o arquivo APK baixado e divirta-se!</li>
+<li>Faça o download do arquivo APK clicando no botão de download acima.</li>
+<li>Ative a opção <em>Fontes Desconhecidas</em> nas configurações de segurança do seu celular Android.</li>
+<li>Instale o arquivo baixado e divirta-se sem limites!</li>
 </ol>
 
 <h2>Perguntas Frequentes (FAQ)</h2>
 <p><strong>O Mod precisa de Root no celular?</strong><br/>
-Não! Funciona perfeitamente em qualquer dispositivo Android sem necessidade de Root.</p>
+Não! Funciona perfeitamente em qualquer dispositivo Android padrão sem necessidade de Root.</p>
 
 <p><strong>Como atualizar o jogo no futuro?</strong><br/>
 Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que forem lançadas.</p>
@@ -285,7 +243,7 @@ async function construirHTMLPost(jogo, idJogo, recursos) {
   const peso = jogo.peso || 'Varia com o dispositivo';
   const screenshots = jogo.screenshots || [];
 
-  const blocoSEO = await gerarConteudoSEOComIA(nomeLimpo, peso, recursos);
+  const blocoSEO = gerarConteudoSEOBot(nomeLimpo, peso, recursos);
 
   return `<!--more-->
 <!-- ======================================================== -->
@@ -369,7 +327,8 @@ async function executarPostagem() {
       const ehModMenu = labels.includes('MOD MENU');
       const tituloPost = gerarTituloInteligente(nomeJogo, jogo.versao, recursos, ehModMenu);
 
-      const descricaoPesquisa = await gerarDescricaoPesquisaComIA(nomeJogo, jogo.versao, recursos, ehModMenu);
+      // Descrição de pesquisa gerada 100% pelo Bot Inteligente (Sem IA)
+      const descricaoPesquisa = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
 
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos);
 
