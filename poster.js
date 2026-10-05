@@ -72,8 +72,51 @@ function obterRecursosDoJogo(jogo) {
 // Define Marcadores Sem Repetição
 function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   const marcadores = new Set();
-  const textoCompleto = `${nomeJogo} ${recursos.join(' ')}`.toLowerCase();    marcadores.add(nomeJogo.trim());    if (jogo.categoria) {     marcadores.add(jogo.categoria.trim());   } else {     marcadores.add('Jogos');   }    const temModMenu = textoCompleto.includes('mod menu') \vert{}\vert{} textoCompleto.includes('menu');   if (temModMenu) {     marcadores.add('MOD MENU');   } else {     marcadores.add('MOD APK');   }    const eOnline = ['online', 'multiplayer', 'pvp', 'server'].some(k => textoCompleto.includes(k));   const eOffline = ['offline', 'sem internet', 'singleplayer'].some(k => textoCompleto.includes(k));    if (eOnline && eOffline) {     marcadores.add('Online');     marcadores.add('Offline');   } else if (eOnline) {     marcadores.add('Online');   } else {     marcadores.add('Offline');   }    return Array.from(marcadores); }  // 🎯 Gerador de Título com Espaçamento 100\% Perfeito function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {   let vFormatada = (versao \vert{}\vert{} '').toString().trim();   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {     vFormatada = 'v' + vFormatada;   }    // Remove repetições de 'MOD' caso já venha no nome do jogo   let nomeLimpo = nomeJogo.toString().replace(/MOD\s*(APK\vert{}MENU)?/gi, '').trim();    const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';   const funcoesTitulo = recursos.slice(0, 10).join(' / ');    // Junta os elementos com espaços garantidos   const partes = [nomeLimpo, tagMod, vFormatada, `(${funcoesTitulo})`].filter(p => p && p.length > 0);
-  return partes.join(' ').replace(/\s+/g, ' ').trim();
+  const textoCompleto = `${nomeJogo}${recursos.join(' ')}`.toLowerCase();
+
+  marcadores.add(nomeJogo.trim());
+
+  if (jogo.categoria) {
+    marcadores.add(jogo.categoria.trim());
+  } else {
+    marcadores.add('Jogos');
+  }
+
+  const temModMenu = textoCompleto.includes('mod menu') || textoCompleto.includes('menu');
+  if (temModMenu) {
+    marcadores.add('MOD MENU');
+  } else {
+    marcadores.add('MOD APK');
+  }
+
+  const eOnline = ['online', 'multiplayer', 'pvp', 'server'].some(k => textoCompleto.includes(k));
+  const eOffline = ['offline', 'sem internet', 'singleplayer'].some(k => textoCompleto.includes(k));
+
+  if (eOnline && eOffline) {
+    marcadores.add('Online');
+    marcadores.add('Offline');
+  } else if (eOnline) {
+    marcadores.add('Online');
+  } else {
+    marcadores.add('Offline');
+  }
+
+  return Array.from(marcadores);
+}
+
+// Gerador de Título com Espaço Garantido
+function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
+  let vFormatada = (versao || '').toString().trim();
+  if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
+    vFormatada = 'v' + vFormatada;
+  }
+
+  let nomeLimpo = nomeJogo.toString().replace(/MOD\s*(APK|MENU)?/gi, '').trim();
+  const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
+  const funcoesTitulo = recursos.slice(0, 10).join(' / ');
+
+  const tituloCru = `${nomeLimpo}${tagMod} ${vFormatada} (${funcoesTitulo})`;
+  return tituloCru.replace(/\s+/g, ' ').trim();
 }
 
 function gerarModTagsHTML(recursos) {
@@ -85,24 +128,21 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
-// =========================================================================
-// 🧠 REQUISIÇÃO MULTI-MODELO À API DO GEMINI (COM SUPORTE A CHAVES E ENDPOINTS)
-// =========================================================================
+// Requisicao Inteligente a IA Gemini
 async function chamarGeminiComFallbackModelos(prompt) {
   const rawKey = process.env.GEMINI_API_KEY || process.env.GEMINI_KEY || '';
   const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
 
   if (!apiKey) {
-    console.log('⚠️ ATENÇÃO: Secret GEMINI_API_KEY não configurada no GitHub Secrets!');
+    console.log('⚠️ Secret GEMINI_API_KEY nao encontrada no GitHub Secrets!');
     return null;
   }
 
   const modelos = [
     'gemini-1.5-flash',
     'gemini-1.5-flash-latest',
-    'gemini-2.0-flash-exp',
     'gemini-1.5-pro',
-    'gemini-pro'
+    'gemini-2.0-flash-exp'
   ];
 
   for (const modelo of modelos) {
@@ -122,14 +162,20 @@ async function chamarGeminiComFallbackModelos(prompt) {
 
       const texto = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (texto) {
-        console.log(`✨ IA (Gemini) respondeu com sucesso usando o modelo: ${modelo}!`);         return texto;       }     } catch (err) {       const msgErro = err.response?.data?.error?.message \vert{}\vert{} err.message;       const status = err.response?.status \vert{}\vert{} 'Desconhecido';       console.log(`⚠️ Modelo "${modelo}" indisponível (${status}):${msgErro}`);
+        console.log(`✨ IA (Gemini) respondeu com sucesso via modelo: ${modelo}`);
+        return texto;
+      }
+    } catch (err) {
+      const status = err.response?.status || 'Erro';
+      const detalhe = err.response?.data?.error?.message || err.message;
+      console.log(`⚠️ Modelo "${modelo}" indisponivel (${status}):${detalhe}`);
     }
   }
 
   return null;
 }
 
-// Descrição de Pesquisa (SEO)
+// Descricao de Pesquisa (SEO)
 async function gerarDescricaoPesquisaComIA(nomeJogo, versao, recursos, ehModMenu) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
@@ -162,26 +208,16 @@ REGRAS RÍGIDAS:
     return textoDesc;
   }
 
-  // Fallback com Espaçamento 100% Perfeito
   const funcoesStr = recursos.slice(0, 2).join(' e ');
-  const partesFallback = [
-    'Baixar',
-    nomeLimpo,
-    tagMod,
-    vFormatada,
-    'com',
-    funcoesStr,
-    'para Android. Download grátis e seguro!'
-  ].filter(p => p && p.length > 0);
-
-  let fallback = partesFallback.join(' ').replace(/\s+/g, ' ').trim();
+  let fallback = `Baixar ${nomeLimpo}${tagMod} ${vFormatada} com${funcoesStr} para Android. Download grátis e seguro!`;
+  fallback = fallback.replace(/\s+/g, ' ').trim();
   if (fallback.length > 150) {
     fallback = fallback.substring(0, 147) + '...';
   }
   return fallback;
 }
 
-// Bloco SEO de Conteúdo
+// Bloco SEO de Conteudo
 async function gerarConteudoSEOComIA(nomeJogo, peso, recursos) {
   let nomeLimpo = nomeJogo.toString().replace(/MOD\s*(APK|MENU)?/gi, '').trim();
 
@@ -325,7 +361,7 @@ async function executarPostagem() {
     if (INPUT_ID_JOGO) {
       console.log(`📝 Dados recebidos na execução para o ID: "${INPUT_ID_JOGO}"`);
       const updateData = {};
-      
+
       if (INPUT_FUNCOES_MOD) {
         updateData.recursos_mod = INPUT_FUNCOES_MOD.split(',').map(f => f.trim()).filter(f => f.length > 0);
       }
@@ -367,7 +403,7 @@ async function executarPostagem() {
       const labels = definirMarcadoresInteligentes(nomeJogo, jogo, recursos);
       const ehModMenu = labels.includes('MOD MENU');
       const tituloPost = gerarTituloInteligente(nomeJogo, jogo.versao, recursos, ehModMenu);
-      
+
       const descricaoPesquisa = await gerarDescricaoPesquisaComIA(nomeJogo, jogo.versao, recursos, ehModMenu);
 
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos);
@@ -389,7 +425,7 @@ async function executarPostagem() {
               }
             });
           } catch (errUpdate) {
-            const isNotFound = errUpdate.status === 404 || 
+            const isNotFound = errUpdate.status === 404 ||
                                (errUpdate.response && errUpdate.response.status === 404) ||
                                (errUpdate.message && errUpdate.message.includes('Requested entity was not found'));
 
