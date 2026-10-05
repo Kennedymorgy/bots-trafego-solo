@@ -23,7 +23,7 @@ oauth2Client.setCredentials({
 
 const blogger = google.blogger({ version: 'v3', auth: oauth2Client });
 
-// Remove repeticoes de MOD e garante espacamento correto
+// Remove repetições de MOD e garante espaçamento correto
 function limparNomeJogo(nome) {
   if (!nome) return '';
   return nome
@@ -79,11 +79,11 @@ function obterRecursosDoJogo(jogo) {
   return ['Mod Menu Atualizado', 'Recursos Ilimitados', 'Sem Anúncios', 'Anti-Ban Integrado'];
 }
 
-// Define Marcadores Sem Repeticao
+// Define Marcadores Sem Repetição
 function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   const marcadores = new Set();
   const nomeLimpo = limparNomeJogo(nomeJogo);
-  const textoCompleto = `${nomeLimpo}${recursos.join(' ')}`.toLowerCase();
+  const textoCompleto = `${nomeLimpo} ${recursos.join(' ')}`.toLowerCase();
 
   marcadores.add(nomeLimpo);
 
@@ -126,8 +126,7 @@ function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
   const funcoesTitulo = recursos.slice(0, 10).join(' / ');
 
-  // Espaço garantido entre o nomeLimpo e a tagMod
-  const tituloCru = `${nomeLimpo}${tagMod} ${vFormatada} (${funcoesTitulo})`;
+  const tituloCru = `${nomeLimpo} ${tagMod} ${vFormatada} (${funcoesTitulo})`;
   return tituloCru.replace(/\s+/g, ' ').trim();
 }
 
@@ -140,7 +139,7 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
-// IA com Sistema de Fallback Multi-Modelo (Plano A, B, C, D, E)
+// Chamada para API com fallback de modelos estáveis
 async function chamarGeminiComFallbackModelos(prompt) {
   const rawKey = process.env.GEMINI_API_KEY || process.env.GEMINI_KEY || '';
   const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
@@ -150,13 +149,11 @@ async function chamarGeminiComFallbackModelos(prompt) {
     return null;
   }
 
-  // Plano A, B, C, D e E com os modelos corretos indicados no seu log
+  // Lista de modelos padrão estáveis da API do Gemini
   const modelos = [
-    'gemini-3.8-flash',       // Plano A (Recomendado pela API)
-    'gemini-3.1-pro-preview', // Plano B
-    'gemini-2.5-flash',       // Plano C
-    'gemini-2.0-flash-exp',   // Plano D
-    'gemini-1.5-flash-latest' // Plano E
+    'gemini-1.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-pro'
   ];
 
   for (const modelo of modelos) {
@@ -167,19 +164,18 @@ async function chamarGeminiComFallbackModelos(prompt) {
         { contents: [{ parts: [{ text: prompt }] }] },
         {
           headers: { 'Content-Type': 'application/json' },
-          timeout: 15000
+          timeout: 10000
         }
       );
 
       const texto = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (texto) {
-        console.log(`✨ IA (Gemini) respondeu com sucesso via modelo: ${modelo}`);
+        console.log(`✨ IA respondeu via modelo: ${modelo}`);
         return texto;
       }
     } catch (err) {
       const status = err.response?.status || 'Erro';
-      const detalhe = err.response?.data?.error?.message || err.message;
-      console.log(`⚠️ Modelo "${modelo}" indisponível (${status}):${detalhe}`);
+      console.log(`⚠️️ Modelo "${modelo}" indisponível (${status}). Tentando próximo...`);
     }
   }
 
@@ -196,18 +192,8 @@ async function gerarDescricaoPesquisaComIA(nomeJogo, versao, recursos, ehModMenu
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
 
-  const prompt = `Crie uma Meta Descrição (Descrição de Pesquisa SEO) atraente para o jogo "${nomeLimpo}" no Android.
-Versão atualizada: ${vFormatada || 'Atualizada'}.
-Tag: ${tagMod}.
-Recursos do Mod: ${recursos.slice(0, 3).join(', ')}.
+  const prompt = `Crie uma Meta Descrição SEO com no máximo 145 caracteres para "${nomeLimpo}" ${tagMod} ${vFormatada}.`;
 
-REGRAS RÍGIDAS:
-1. Deve ter NO MÁXIMO 145 CARACTERES (limite estrito do Blogger é 150).
-2. Inclua obrigatoriamente o nome do jogo, a versão exata (${vFormatada}) e a tag${tagMod}.
-3. Seja direto e convidativo para download no Android.
-4. Retorne APENAS o texto corrido, sem aspas, sem explicações e sem formatação markdown.`;
-
-  console.log(`🔍 Solicitando Descrição de Pesquisa (SEO) à IA para "${nomeLimpo}"...`);
   const respostaIA = await chamarGeminiComFallbackModelos(prompt);
 
   if (respostaIA) {
@@ -215,12 +201,13 @@ REGRAS RÍGIDAS:
     if (textoDesc.length > 150) {
       textoDesc = textoDesc.substring(0, 147) + '...';
     }
-    console.log(`🎯 Descrição de Pesquisa gerada (${textoDesc.length} chars): "${textoDesc}"`);
     return textoDesc;
   }
 
+  // Bot Fallback (Sem IA)
+  console.log('🤖 Gerando Descrição SEO via Bot...');
   const funcoesStr = recursos.slice(0, 2).join(' e ');
-  let fallback = `Baixar ${nomeLimpo}${tagMod} ${vFormatada} com${funcoesStr} para Android. Download grátis e seguro!`;
+  let fallback = `Baixar ${nomeLimpo} ${tagMod} ${vFormatada} com ${funcoesStr} para Android. Download grátis e seguro!`;
   fallback = fallback.replace(/\s+/g, ' ').trim();
   if (fallback.length > 150) {
     fallback = fallback.substring(0, 147) + '...';
@@ -232,77 +219,34 @@ REGRAS RÍGIDAS:
 async function gerarConteudoSEOComIA(nomeJogo, peso, recursos) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
 
-  const prompt = `Você é um especialista em SEO para blogs de jogos e mods para Android.
-Sua única tarefa é gerar o HTML do bloco <div class="seo-content-box"> para o jogo "${nomeLimpo}".
+  const prompt = `Gere um bloco HTML <div class="seo-content-box"> simples e direto para o jogo "${nomeLimpo}" no Android.
+Tamanho: ${peso}
+Recursos: ${recursos.join(', ')}`;
 
-REGRAS RÍGIDAS:
-1. Retorne APENAS o HTML da div com classe "seo-content-box". Não adicione explicações, comentários ou marcadores como \`\`\`html.
-2. Escreva em Português de forma atraente, natural e fluida (como um humano escrevendo para jogadores).
-3. Para cada item da lista de recursos, crie uma frase explicativa realista e adaptada especificamente ao contexto do jogo "${nomeLimpo}".
-
-Tamanho do arquivo: ${peso}
-Recursos do Mod:
-${recursos.map(r => `- ${r}`).join('\n')}
-
-ESTRUTURA EXATA DO HTML A RETORNAR:
-
-<div class="seo-content-box">
-
-<h2>Sobre o ${nomeLimpo} MOD APK <span class="cyanPostVersionDisplay"></span></h2>
-<p>[Escreva 2 parágrafos envolventes descrevendo o jogo ${nomeLimpo} e como essa modificação melhora a jogabilidade no Android.]</p>
-
-<div class="seo-alert-box">
-<strong>Dica de Instalação:</strong> Certifique-se de desinstalar qualquer versão anterior do ${nomeLimpo} antes de instalar esta modificação para evitar erros de conflito.
-</div>
-
-<h2>Principais Recursos do Mod Menu</h2>
-<p>A versão modificada do ${nomeLimpo} conta com ferramentas exclusivas ativáveis em tempo real:</p>
-<ul>
-[Gere <li><strong>[Nome do Recurso]:</strong> [Explicação inteligente em 1 frase de como ele ajuda o jogador no ${nomeLimpo}]</li> para CADA recurso da lista]
-</ul>
-
-<h2>Requisitos e Como Instalar no Android</h2>
-<p>O arquivo possui tamanho aproximado de <strong>${peso}</strong> e requer Android 5.0 ou superior. Siga os passos para instalar:</p>
-<ol>
-<li>Faça o download do arquivo clicando no botão de download acima.</li>
-<li>Ative a opção <em>Fontes Desconhecidas</em> nas configurações de segurança do seu celular.</li>
-<li>Instale o arquivo APK baixado e divirta-se!</li>
-</ol>
-
-<h2>Perguntas Frequentes (FAQ)</h2>
-<p><strong>O Mod precisa de Root no celular?</strong><br/>
-Não! Funciona perfeitamente em qualquer dispositivo Android sem necessidade de Root.</p>
-
-<p><strong>Como atualizar o jogo no futuro?</strong><br/>
-Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que foram lançadas.</p>
-
-</div>`;
-
-  console.log(`🤖 Solicitando texto SEO exclusivo à IA para "${nomeLimpo}"...`);
   const respostaIA = await chamarGeminiComFallbackModelos(prompt);
 
   if (respostaIA) {
-    const conteudoGerado = respostaIA.replace(/```html/gi, '').replace(/```/g, '').trim();
-    return conteudoGerado;
+    return respostaIA.replace(/```html/gi, '').replace(/```/g, '').trim();
   }
 
-  console.log('⚠️ Usando texto SEO padrão fallback.');
+  // Bot Fallback (Sem IA) - Estrutura Dinâmica e Automatizada
+  console.log('🤖 Gerando Conteúdo SEO via Bot...');
   return gerarSEOTextoFallback(nomeLimpo, peso, recursos);
 }
 
-// Fallback SEO Humanizado
+// Gerador Automático Local (Bot)
 function gerarSEOTextoFallback(nomeJogo, peso, recursos) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
   
   const listaRecursosFormatada = recursos.map(rec => {
-    return `<li><strong>${rec}:</strong> Recurso liberado para dar mais velocidade e controle no seu progresso durante as corridas.</li>`;
+    return `<li><strong>${rec}:</strong> Recurso totalmente desbloqueado para garantir a melhor experiência no jogo.</li>`;
   }).join('\n');
 
   return `<div class="seo-content-box">
 
 <h2>Sobre o ${nomeLimpo} MOD APK <span class="cyanPostVersionDisplay"></span></h2>
-<p>Se você procura a versão mais recente e otimizada do <strong>${nomeLimpo} MOD APK</strong> para Android, está no lugar certo. Esta modificação melhora o fluxo do jogo e libera opções para uma experiência completa no seu celular.</p>
-<p>Desfrute de corridas de alta velocidade e gráficos incríveis com todas as facilidades do Mod totalmente ativadas.</p>
+<p>Se você procura a versão mais recente e otimizada do <strong>${nomeLimpo} MOD APK</strong> para Android, está no lugar certo. Esta modificação melhora o desempenho e libera opções para uma experiência completa no seu dispositivo.</p>
+<p>Aproveite todas as vantagens e recursos exclusivos totalmente liberados para o seu celular.</p>
 
 <div class="seo-alert-box">
 <strong>Dica de Instalação:</strong> Certifique-se de desinstalar qualquer versão anterior do ${nomeLimpo} antes de instalar esta modificação para evitar erros de conflito.
@@ -327,7 +271,7 @@ ${listaRecursosFormatada}
 Não! Funciona perfeitamente em qualquer dispositivo Android sem necessidade de Root.</p>
 
 <p><strong>Como atualizar o jogo no futuro?</strong><br/>
-Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que foram lançadas.</p>
+Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que forem lançadas.</p>
 
 </div>`;
 }
@@ -413,7 +357,7 @@ async function executarPostagem() {
       }
 
       if (jogo.postado_blogger) {
-        console.log(`⏭️️ Jogo "${idJogo}" já foi postado. Pulando...`);
+        console.log(`⏭ Jogo "${idJogo}" já foi postado. Pulando...`);
         continue;
       }
 
