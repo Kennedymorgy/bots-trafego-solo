@@ -7,12 +7,10 @@ const WORKER_BASE = 'https://orange-star-d066.claudiokennedymorgy.workers.dev';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Puxa as entradas do GitHub Action (quando você clica em Run)
 const INPUT_ID_JOGO = process.env.INPUT_ID_JOGO ? process.env.INPUT_ID_JOGO.trim() : '';
 const INPUT_FUNCOES_MOD = process.env.INPUT_FUNCOES_MOD ? process.env.INPUT_FUNCOES_MOD.trim() : '';
 const INPUT_PESO_MB = process.env.INPUT_PESO_MB ? process.env.INPUT_PESO_MB.trim() : '';
 
-// Configuração do OAuth2
 const oauth2Client = new google.auth.OAuth2(
   process.env.CLIENT_ID,
   process.env.CLIENT_SECRET,
@@ -58,7 +56,7 @@ async function notificarGoogleIndexing(urlPost) {
   }
 }
 
-// Trata os Recursos da Caixinha salvos no Firebase ou vindo das Inputs do Action
+// Trata os Recursos
 function obterRecursosDoJogo(jogo) {
   if (jogo.recursos_mod) {
     if (Array.isArray(jogo.recursos_mod) && jogo.recursos_mod.length > 0) {
@@ -76,17 +74,14 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   const marcadores = new Set();
   const textoCompleto = `${nomeJogo}${recursos.join(' ')}`.toLowerCase();
 
-  // 1. Nome do Jogo
-  marcadores.add(nomeJogo);
+  marcadores.add(nomeJogo.trim());
 
-  // 2. Categoria
   if (jogo.categoria) {
     marcadores.add(jogo.categoria.trim());
   } else {
     marcadores.add('Jogos');
   }
 
-  // 3. Apenas 1 tipo de Mod (MOD MENU ou MOD APK)
   const temModMenu = textoCompleto.includes('mod menu') || textoCompleto.includes('menu');
   if (temModMenu) {
     marcadores.add('MOD MENU');
@@ -94,7 +89,6 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
     marcadores.add('MOD APK');
   }
 
-  // 4. Modo de Jogo (Offline ou Online)
   const eOnline = ['online', 'multiplayer', 'pvp', 'server'].some(k => textoCompleto.includes(k));
   const eOffline = ['offline', 'sem internet', 'singleplayer'].some(k => textoCompleto.includes(k));
 
@@ -110,7 +104,7 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   return Array.from(marcadores);
 }
 
-// Gerador de Título Otimizado com espaço garantido
+// Gerador de Título Otimizado com Espaçamento Garantido
 function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
@@ -119,8 +113,9 @@ function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
 
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
   const funcoesTitulo = recursos.slice(0, 10).join(' / ');
+  const nomeLimpo = nomeJogo.toString().trim();
 
-  return `${nomeJogo.trim()}${tagMod} ${vFormatada} (${funcoesTitulo})`.trim();
+  return `${nomeLimpo}${tagMod} ${vFormatada} (${funcoesTitulo})`.replace(/\s+/g, ' ').trim();
 }
 
 function gerarModTagsHTML(recursos) {
@@ -133,21 +128,57 @@ function gerarScreenshotsHTML(screenshots) {
 }
 
 // =========================================================================
-// 🧠 GERADOR EXCLUSIVO DA DESCRIÇÃO DE PESQUISA (SEO SEARCH DESCRIPTION)
+// 🧠 REQUISIÇÃO MULTI-MODELO À API DO GEMINI (EVITA 404 DEFINITIVAMENTE)
 // =========================================================================
+async function chamarGeminiComFallbackModelos(prompt) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  // Lista de modelos ordenados do mais recente ao legados
+  const modelos = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro'
+  ];
+
+  for (const modelo of modelos) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
+      const res = await axios.post(
+        url,
+        { contents: [{ parts: [{ text: prompt }] }] },
+        { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
+      );
+
+      const texto = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (texto) {
+        console.log(`✨ Resposta da IA gerada com sucesso via modelo: ${modelo}!`);
+        return texto;
+      }
+    } catch (err) {
+      if (err.response && err.response.status === 404) {
+        console.log(`⚠️ Modelo "${modelo}" indisponível (404). Testando próximo modelo...`);
+        continue;
+      }
+      console.error(`❌ Erro de conexão com o modelo ${modelo}:`, err.message);
+      break;
+    }
+  }
+
+  return null;
+}
+
+// Descrição de Pesquisa (SEO)
 async function gerarDescricaoPesquisaComIA(nomeJogo, versao, recursos) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
     vFormatada = 'v' + vFormatada;
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const nomeLimpo = nomeJogo.toString().trim();
 
-  if (apiKey) {
-    try {
-      console.log(`🔍 Solicitando Descrição de Pesquisa (SEO) ao Gemini para "${nomeJogo}"...`);
-
-      const prompt = `Crie uma Meta Descrição (Descrição de Pesquisa SEO) super atraente para o jogo "${nomeJogo}" no Android.
+  const prompt = `Crie uma Meta Descrição (Descrição de Pesquisa SEO) super atraente para o jogo "${nomeLimpo}" no Android.
 Versão atualizada: ${vFormatada || 'Atualizada'}.
 Recursos do Mod: ${recursos.slice(0, 3).join(', ')}.
 
@@ -157,57 +188,37 @@ REGRAS RÍGIDAS:
 3. Seja direto e convidativo para download no Android.
 4. Retorne APENAS o texto corrido, sem aspas, sem explicações e sem formatação markdown.`;
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  console.log(`🔍 Solicitando Descrição de Pesquisa (SEO) à IA para "${nomeLimpo}"...`);
+  const respostaIA = await chamarGeminiComFallbackModelos(prompt);
 
-      const res = await axios.post(
-        url,
-        { contents: [{ parts: [{ text: prompt }] }] },
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-
-      let textoDesc = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (textoDesc) {
-        textoDesc = textoDesc.replace(/[\r\n"']/g, '').trim();
-        if (textoDesc.length > 150) {
-          textoDesc = textoDesc.substring(0, 147) + '...';
-        }
-        console.log(`🎯 Descrição de Pesquisa gerada (${textoDesc.length} chars): "${textoDesc}"`);
-        return textoDesc;
-      }
-    } catch (err) {
-      console.error('❌ Erro Gemini na Descrição de Pesquisa (usando fallback):', err.message);
+  if (respostaIA) {
+    let textoDesc = respostaIA.replace(/[\r\n"']/g, '').trim();
+    if (textoDesc.length > 150) {
+      textoDesc = textoDesc.substring(0, 147) + '...';
     }
+    console.log(`🎯 Descrição de Pesquisa gerada (${textoDesc.length} chars): "${textoDesc}"`);
+    return textoDesc;
   }
 
   const funcoesStr = recursos.slice(0, 2).join(' e ');
-  let fallback = `Baixar ${nomeJogo.trim()} MOD APK ${vFormatada} com${funcoesStr} para Android. Download grátis e seguro!`.trim();
+  let fallback = `Baixar ${nomeLimpo} MOD APK ${vFormatada} com${funcoesStr} para Android. Download grátis e seguro!`.replace(/\s+/g, ' ').trim();
   if (fallback.length > 150) {
     fallback = fallback.substring(0, 147) + '...';
   }
   return fallback;
 }
 
-// =========================================================================
-// 🧠 GERADOR EXCLUSIVO DA CAIXA DE SEO COM IA (GOOGLE GEMINI API)
-// =========================================================================
+// Bloco SEO de Conteúdo
 async function gerarConteudoSEOComIA(nomeJogo, peso, recursos) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const nomeLimpo = nomeJogo.toString().trim();
 
-  if (!apiKey) {
-    console.log('⚠️️ GEMINI_API_KEY não configurada. Gerando modelo estático padrão.');
-    return gerarSEOTextoFallback(nomeJogo, peso, recursos);
-  }
-
-  try {
-    console.log(`🤖 Solicitando texto SEO exclusivo ao Gemini para "${nomeJogo}"...`);
-
-    const prompt = `Você é um especialista em SEO para blogs de jogos e mods para Android.
-Sua única tarefa é gerar o HTML do bloco <div class="seo-content-box"> para o jogo "${nomeJogo}".
+  const prompt = `Você é um especialista em SEO para blogs de jogos e mods para Android.
+Sua única tarefa é gerar o HTML do bloco <div class="seo-content-box"> para o jogo "${nomeLimpo}".
 
 REGRAS RÍGIDAS:
 1. Retorne APENAS o HTML da div com classe "seo-content-box". Não adicione explicações, comentários ou marcadores como \`\`\`html.
-2. Escreva em Português do Brasil de forma atraente e inteligente.
-3. Para cada item da lista de recursos, crie uma frase explicativa realista e adaptada especificamente ao contexto do jogo "${nomeJogo}".
+2. Escreva em Português de forma atraente e inteligente.
+3. Para cada item da lista de recursos, crie uma frase explicativa realista e adaptada especificamente ao contexto do jogo "${nomeLimpo}".
 
 Tamanho do arquivo: ${peso}
 Recursos do Mod:
@@ -217,17 +228,17 @@ ESTRUTURA EXATA DO HTML A RETORNAR:
 
 <div class="seo-content-box">
 
-<h2>Sobre o ${nomeJogo} MOD APK <span class="cyanPostVersionDisplay"></span></h2>
-<p>[Escreva 2 parágrafos envolventes descrevendo o jogo ${nomeJogo} e como essa modificação melhora a jogabilidade no Android.]</p>
+<h2>Sobre o ${nomeLimpo} MOD APK <span class="cyanPostVersionDisplay"></span></h2>
+<p>[Escreva 2 parágrafos envolventes descrevendo o jogo ${nomeLimpo} e como essa modificação melhora a jogabilidade no Android.]</p>
 
 <div class="seo-alert-box">
-<strong>Dica de Instalação:</strong> Certifique-se de desinstalar qualquer versão anterior do ${nomeJogo} antes de instalar esta modificação para evitar erros de conflito.
+<strong>Dica de Instalação:</strong> Certifique-se de desinstalar qualquer versão anterior do ${nomeLimpo} antes de instalar esta modificação para evitar erros de conflito.
 </div>
 
 <h2>Principais Recursos do Mod Menu</h2>
-<p>A versão modificada do ${nomeJogo} conta com ferramentas exclusivas ativáveis em tempo real:</p>
+<p>A versão modificada do ${nomeLimpo} conta com ferramentas exclusivas ativáveis em tempo real:</p>
 <ul>
-[Gere <li><strong>[Nome do Recurso]:</strong> [Explicação inteligente em 1 frase de como ele ajuda o jogador no ${nomeJogo}]</li> para CADA recurso da lista]
+[Gere <li><strong>[Nome do Recurso]:</strong> [Explicação inteligente em 1 frase de como ele ajuda o jogador no ${nomeLimpo}]</li> para CADA recurso da lista]
 </ul>
 
 <h2>Requisitos e Como Instalar no Android</h2>
@@ -247,27 +258,16 @@ Adicione o nosso site aos seus favoritos para baixar as novas atualizações ass
 
 </div>`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  console.log(`🤖 Solicitando texto SEO exclusivo à IA para "${nomeLimpo}"...`);
+  const respostaIA = await chamarGeminiComFallbackModelos(prompt);
 
-    const res = await axios.post(
-      url,
-      { contents: [{ parts: [{ text: prompt }] }] },
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-
-    let conteudoGerado = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (conteudoGerado) {
-      conteudoGerado = conteudoGerado.replace(/```html/gi, '').replace(/```/g, '').trim();
-      console.log('✨ Bloco SEO gerado com sucesso pela IA!');
-      return conteudoGerado;
-    }
-
-    throw new Error('Resposta vazia da API do Gemini.');
-  } catch (err) {
-    console.error('❌ Erro na API do Gemini (usando fallback):', err.message);
-    return gerarSEOTextoFallback(nomeJogo, peso, recursos);
+  if (respostaIA) {
+    const conteudoGerado = respostaIA.replace(/```html/gi, '').replace(/```/g, '').trim();
+    return conteudoGerado;
   }
+
+  console.log('⚠ Usando texto SEO padrão fallback.');
+  return gerarSEOTextoFallback(nomeLimpo, peso, recursos);
 }
 
 function gerarSEOTextoFallback(nomeJogo, peso, recursos) {
@@ -402,7 +402,6 @@ async function executarPostagem() {
       try {
         let response;
 
-        // Tenta atualizar se já tiver um ID no Firebase
         if (jogo.blogger_post_id) {
           try {
             console.log(`🔄 Atualizando post existente no Blogger (ID: ${jogo.blogger_post_id})...`);
@@ -417,7 +416,6 @@ async function executarPostagem() {
               }
             });
           } catch (errUpdate) {
-            // Se o post foi APAGADO manualmente no Blogger (404 / Requested entity was not found)
             const isNotFound = errUpdate.status === 404 || 
                                (errUpdate.response && errUpdate.response.status === 404) ||
                                (errUpdate.message && errUpdate.message.includes('Requested entity was not found'));
@@ -459,7 +457,6 @@ async function executarPostagem() {
 
         await notificarGoogleIndexing(urlPublicada);
 
-        // Atualiza o Firebase com o novo ID do post e nova URL
         await axios.patch(`${FIREBASE_BASE_URL}/jogos/${idJogo}.json`, {
           postado_blogger: true,
           blogger_post_id: response.data.id,
