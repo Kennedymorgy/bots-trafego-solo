@@ -74,7 +74,7 @@ function obterRecursosDoJogo(jogo) {
 // Define Marcadores Sem Repetição
 function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   const marcadores = new Set();
-  const textoCompleto = `${nomeJogo} ${recursos.join(' ')}`.toLowerCase();
+  const textoCompleto = `${nomeJogo}${recursos.join(' ')}`.toLowerCase();
 
   // 1. Nome do Jogo
   marcadores.add(nomeJogo);
@@ -120,7 +120,7 @@ function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
   const funcoesTitulo = recursos.slice(0, 10).join(' / ');
 
-  return `${nomeJogo} ${tagMod} ${vFormatada} (${funcoesTitulo})`;
+  return `${nomeJogo}${tagMod} ${vFormatada} (${funcoesTitulo})`;
 }
 
 function gerarModTagsHTML(recursos) {
@@ -132,14 +132,137 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
-function construirHTMLPost(jogo, idJogo, recursos) {
+// =========================================================================
+// 🧠 GERADOR EXCLUSIVO DA CAIXA DE SEO COM IA (GOOGLE GEMINI API)
+// =========================================================================
+async function gerarConteudoSEOComIA(nomeJogo, peso, recursos) {
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    console.log('⚠️ GEMINI_API_KEY não configurada. Gerando modelo estático padrão.');
+    return gerarSEOTextoFallback(nomeJogo, peso, recursos);
+  }
+
+  try {
+    console.log(`🤖 Solicitando texto SEO exclusivo ao Gemini para "${nomeJogo}"...`);
+
+    const prompt = `Você é um especialista em SEO para blogs de jogos e mods para Android.
+Sua única tarefa é gerar o HTML do bloco <div class="seo-content-box"> para o jogo "${nomeJogo}".
+
+REGRAS RÍGIDAS:
+1. Retorne APENAS o HTML da div com classe "seo-content-box". Não adicione explicações, comentários ou marcadores como \`\`\`html.
+2. Escreva em Português do Brasil de forma atraente e inteligente.
+3. Para cada item da lista de recursos, crie uma frase explicativa realista e adaptada especificamente ao contexto do jogo "${nomeJogo}" (ex: "Dinheiro Infinito": compre qualquer veículo ou melhoria na loja sem zerar suas moedas).
+
+Tamanho do arquivo: ${peso}
+Recursos do Mod:
+${recursos.map(r => `- ${r}`).join('\n')}
+
+ESTRUTURA EXATA DO HTML A RETORNAR:
+
+<div class="seo-content-box">
+
+<h2>Sobre o ${nomeJogo} MOD APK <span class="cyanPostVersionDisplay"></span></h2>
+<p>[Escreva 2 parágrafos envolventes descrevendo o jogo ${nomeJogo} e como essa modificação melhora a jogabilidade no Android.]</p>
+
+<div class="seo-alert-box">
+<strong>Dica de Instalação:</strong> Certifique-se de desinstalar qualquer versão anterior do ${nomeJogo} antes de instalar esta modificação para evitar erros de conflito.
+</div>
+
+<h2>Principais Recursos do Mod Menu</h2>
+<p>A versão modificada do ${nomeJogo} conta com ferramentas exclusivas ativáveis em tempo real:</p>
+<ul>
+[Gere <li><strong>[Nome do Recurso]:</strong> [Explicação inteligente em 1 frase de como ele ajuda o jogador no ${nomeJogo}]</li> para CADA recurso da lista]
+</ul>
+
+<h2>Requisitos e Como Instalar no Android</h2>
+<p>O arquivo possui tamanho aproximado de <strong>${peso}</strong> e requer Android 5.0 ou superior. Siga os passos para instalar:</p>
+<ol>
+<li>Faça o download do arquivo clicando no botão de download acima.</li>
+<li>Ative a opção <em>Fontes Desconhecidas</em> nas configurações de segurança do seu celular.</li>
+<li>Instale o arquivo APK baixado e divirta-se!</li>
+</ol>
+
+<h2>Perguntas Frequentes (FAQ)</h2>
+<p><strong>O Mod precisa de Root no celular?</strong><br/>
+Não! Funciona perfeitamente em qualquer dispositivo Android sem necessidade de Root.</p>
+
+<p><strong>Como atualizar o jogo no futuro?</strong><br/>
+Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que forem lançadas.</p>
+
+</div>`;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+    const res = await axios.post(
+      url,
+      {
+        contents: [{ parts: [{ text: prompt }] }]
+      },
+      {
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+
+    let conteudoGerado = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (conteudoGerado) {
+      conteudoGerado = conteudoGerado.replace(/```html/gi, '').replace(/```/g, '').trim();
+      console.log('✨ Bloco SEO gerado com sucesso pela IA!');
+      return conteudoGerado;
+    }
+
+    throw new Error('Resposta vazia da API do Gemini.');
+  } catch (err) {
+    console.error('❌ Erro na API do Gemini (usando fallback):', err.message);
+    return gerarSEOTextoFallback(nomeJogo, peso, recursos);
+  }
+}
+
+// Modelo reserva caso a IA falhe ou a chave não exista
+function gerarSEOTextoFallback(nomeJogo, peso, recursos) {
+  return `<div class="seo-content-box">
+
+<h2>Sobre o ${nomeJogo} MOD APK <span class="cyanPostVersionDisplay"></span></h2>
+<p>Se você procura a versão atualizada do <strong>${nomeJogo} MOD APK</strong> para Android, chegou ao lugar certo. Baixe a versão com Mod Menu ativo e recursos liberados para garantir a melhor experiência de jogo.</p>
+
+<div class="seo-alert-box">
+<strong>Dica de Instalação:</strong> Certifique-se de desinstalar qualquer versão anterior do ${nomeJogo} antes de instalar esta modificação para evitar erros de conflito.
+</div>
+
+<h2>Principais Recursos do Mod Menu</h2>
+<ul>
+${recursos.map(rec => `<li><strong>${rec}:</strong> Recursos ativados e funcionais nesta versão.</li>`).join('\n')}
+</ul>
+
+<h2>Requisitos e Como Instalar no Android</h2>
+<p>O arquivo possui tamanho aproximado de <strong>${peso}</strong> e requer Android 5.0 ou superior. Siga os passos para instalar:</p>
+<ol>
+<li>Faça o download do arquivo clicando no botão de download acima.</li>
+<li>Ative a opção <em>Fontes Desconhecidas</em> nas configurações de segurança do seu celular.</li>
+<li>Instale o arquivo APK baixado e divirta-se!</li>
+</ol>
+
+<h2>Perguntas Frequentes (FAQ)</h2>
+<p><strong>O Mod precisa de Root no celular?</strong><br/>
+Não! Funciona perfeitamente em qualquer dispositivo Android sem necessidade de Root.</p>
+
+<p><strong>Como atualizar o jogo no futuro?</strong><br/>
+Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que forem lançadas.</p>
+
+</div>`;
+}
+
+async function construirHTMLPost(jogo, idJogo, recursos) {
   const nomeJogo = jogo.nome || idJogo.replace(/-/g, ' ');
-  const versao = jogo.versao || '';
   const capa = jogo.foto || '';
   const playstore = jogo.playstore_link || '';
   const downloadLink = `${WORKER_BASE}?id=${idJogo}`;
   const peso = jogo.peso || 'Varia com o dispositivo';
   const screenshots = jogo.screenshots || [];
+
+  // Gera APENAS o bloco visível de SEO usando IA
+  const blocoSEO = await gerarConteudoSEOComIA(nomeJogo, peso, recursos);
 
   return `<!--more-->
 <!-- ======================================================== -->
@@ -172,36 +295,7 @@ ${gerarScreenshotsHTML(screenshots)}
 <!-- ========================================== -->
 <!-- 2. CONTEÚDO VISÍVEL OTIMIZADO PARA GOOGLE  -->
 <!-- ========================================== -->
-<div class="seo-content-box">
-
-<h2>Sobre o ${nomeJogo} MOD APK <span class="cyanPostVersionDisplay">${versao}</span></h2>
-<p>Se você procura a versão atualizada do <strong>${nomeJogo} MOD APK</strong> para Android, chegou ao lugar certo. Baixe a versão com Mod Menu ativo e recursos liberados para garantir a melhor experiência de jogo.</p>
-
-<div class="seo-alert-box">
-<strong>Dica de Instalação:</strong> Certifique-se de desinstalar qualquer versão anterior do ${nomeJogo} antes de instalar esta modificação para evitar erros de conflito.
-</div>
-
-<h2>Principais Recursos do Mod Menu</h2>
-<ul>
-${recursos.map(rec => `<li><strong>${rec}:</strong> Recursos ativados e funcionais nesta versão.</li>`).join('\n')}
-</ul>
-
-<h2>Requisitos e Como Instalar no Android</h2>
-<p>O arquivo possui tamanho aproximado de <strong>${peso}</strong> e requer Android 5.0 ou superior. Siga os passos para instalar:</p>
-<ol>
-<li>Faça o download do arquivo clicando no botão de download acima.</li>
-<li>Ative a opção <em>Fontes Desconhecidas</em> nas configurações de segurança do seu celular.</li>
-<li>Instale o arquivo APK baixado e divirta-se!</li>
-</ol>
-
-<h2>Perguntas Frequentes (FAQ)</h2>
-<p><strong>O Mod precisa de Root no celular?</strong><br/>
-Não! Funciona perfeitamente em qualquer dispositivo Android sem necessidade de Root.</p>
-
-<p><strong>Como atualizar o jogo no futuro?</strong><br/>
-Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que forem lançadas.</p>
-
-</div>`;
+${blocoSEO}`;
 }
 
 async function executarPostagem() {
@@ -254,7 +348,9 @@ async function executarPostagem() {
       const labels = definirMarcadoresInteligentes(nomeJogo, jogo, recursos);
       const ehModMenu = labels.includes('MOD MENU');
       const tituloPost = gerarTituloInteligente(nomeJogo, jogo.versao, recursos, ehModMenu);
-      const htmlPost = construirHTMLPost(jogo, idJogo, recursos);
+      
+      // Chama a construção do HTML (com IA no bloco 2)
+      const htmlPost = await construirHTMLPost(jogo, idJogo, recursos);
 
       try {
         const response = await blogger.posts.insert({
@@ -284,7 +380,7 @@ async function executarPostagem() {
 
       } catch (errBlogger) {
         if (errBlogger.response && errBlogger.response.status === 429) {
-          console.error(`⚠️ Cota da API do Blogger atingida (429). Interrompendo temporariamente.`);
+          console.error(`⚠️️ Cota da API do Blogger atingida (429). Interrompendo temporariamente.`);
           break;
         } else {
           console.error(`❌ Erro ao postar "${idJogo}":`, errBlogger.message);
