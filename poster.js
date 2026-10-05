@@ -158,36 +158,39 @@ function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
   return desc;
 }
 
-// Bot Inteligente para Traduzir/Explicar cada Recurso com Sentido Lógico
+// Bot Inteligente com regras separadas e únicas para cada tipo de recurso
 function interpretarRecursoParaSEO(recurso, nomeJogo) {
   const recLower = recurso.toLowerCase();
 
   if (recLower.includes('dinheiro') || recLower.includes('ouro') || recLower.includes('coins') || recLower.includes('grana')) {
-    return `Tenha dinheiro infinito para comprar carros, melhorias e itens livremente na loja do ${nomeJogo}.`;
+    return `Tenha dinheiro infinito para comprar veículos, melhorias e itens livremente na loja do ${nomeJogo}.`;
   }
   if (recLower.includes('compra') || recLower.includes('in-app') || recLower.includes('gratuita')) {
     return `Faça compras in-app totalmente gratuitas sem gastar nada do seu dinheiro real.`;
   }
-  if (recLower.includes('carro') || recLower.includes('veículo') || recLower.includes('desbloqueado')) {
-    return `Todos os carros e veículos do jogo vêm completamente desbloqueados desde o início.`;
+  if (recLower.includes('carro') || recLower.includes('veículo')) {
+    return `Todos os carros e veículos do ${nomeJogo} vêm completamente desbloqueados desde o início para você acelerar.`;
   }
-  if (recLower.includes('mapa') || recLower.includes('fase') || recLower.includes('mundo')) {
-    return `Mapas, pistas e fases liberadas para você explorar sem restrições.`;
+  if (recLower.includes('mapa') || recLower.includes('pista') || recLower.includes('fase') || recLower.includes('mundo')) {
+    return `Mapas, pistas e fases liberadas para você explorar cada canto sem restrições.`;
   }
   if (recLower.includes('anúncio') || recLower.includes('ads') || recLower.includes('sem anúncios')) {
-    return `Anúncios irritantes removidos para você jogar com total foco e fluidez.`;
+    return `Anúncios irritantes removidos para você jogar com total foco, fluidez e sem interrupções.`;
   }
   if (recLower.includes('menu') || recLower.includes('mod menu')) {
     return `Menu flutuante exclusivo ativável em tempo real diretamente na tela durante as partidas.`;
   }
   if (recLower.includes('munição') || recLower.includes('tiro') || recLower.includes('arma')) {
-    return `Munição infinita e armas liberadas para dominar os combates com facilidade.`;
+    return `Munição infinita e armamento liberado para dominar os combates com facilidade.`;
   }
   if (recLower.includes('vida') || recLower.includes('imortal') || recLower.includes('god mode') || recLower.includes('hp')) {
     return `Modo imortal e energia infinita para resistir a qualquer dano dos adversários.`;
   }
+  if (recLower.includes('desbloqueado') || recLower.includes('all unlocked')) {
+    return `Conteúdo completo liberado para você aproveitar tudo que o jogo oferece sem travas.`;
+  }
 
-  // Fallback genérico inteligente se não cair em nenhuma regra específica
+  // Fallback inteligente caso seja um recurso personalizado
   return `Recurso "${recurso}" ativado e funcional para garantir a melhor experiência no ${nomeJogo}.`;
 }
 
@@ -327,10 +330,16 @@ async function executarPostagem() {
       const ehModMenu = labels.includes('MOD MENU');
       const tituloPost = gerarTituloInteligente(nomeJogo, jogo.versao, recursos, ehModMenu);
 
-      // Descrição de pesquisa gerada 100% pelo Bot Inteligente (Sem IA)
       const descricaoPesquisa = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
-
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos);
+
+      // Objeto de dados enviado para o Blogger (Garante que a Descrição de Pesquisa vá preenchida corretamente)
+      const postBody = {
+        title: tituloPost,
+        content: htmlPost,
+        labels: labels,
+        searchDescription: descricaoPesquisa
+      };
 
       try {
         let response;
@@ -341,12 +350,7 @@ async function executarPostagem() {
             response = await blogger.posts.update({
               blogId: BLOG_ID,
               postId: jogo.blogger_post_id,
-              requestBody: {
-                title: tituloPost,
-                content: htmlPost,
-                labels: labels,
-                searchDescription: descricaoPesquisa
-              }
+              requestBody: postBody
             });
           } catch (errUpdate) {
             const isNotFound = errUpdate.status === 404 ||
@@ -357,12 +361,7 @@ async function executarPostagem() {
               console.log(`⚠️ Post ID ${jogo.blogger_post_id} foi APAGADO do Blogger! Criando um NOVO post do zero...`);
               response = await blogger.posts.insert({
                 blogId: BLOG_ID,
-                requestBody: {
-                  title: tituloPost,
-                  content: htmlPost,
-                  labels: labels,
-                  searchDescription: descricaoPesquisa
-                }
+                requestBody: postBody
               });
             } else {
               throw errUpdate;
@@ -372,12 +371,7 @@ async function executarPostagem() {
           console.log(`🆕 Criando novo post no Blogger...`);
           response = await blogger.posts.insert({
             blogId: BLOG_ID,
-            requestBody: {
-              title: tituloPost,
-              content: htmlPost,
-              labels: labels,
-              searchDescription: descricaoPesquisa
-            }
+            requestBody: postBody
           });
         }
 
