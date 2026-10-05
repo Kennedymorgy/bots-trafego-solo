@@ -115,7 +115,7 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   return Array.from(marcadores);
 }
 
-// Gerador de Título com Espaçamento Corrigido
+// Gerador de Título com Espaço Corrigido
 function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
@@ -126,6 +126,7 @@ function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
   const funcoesTitulo = recursos.slice(0, 10).join(' / ');
 
+  // Espaço garantido entre o nomeLimpo e a tagMod
   const tituloCru = `${nomeLimpo}${tagMod} ${vFormatada} (${funcoesTitulo})`;
   return tituloCru.replace(/\s+/g, ' ').trim();
 }
@@ -139,20 +140,23 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
-// Requisição à IA Gemini com Modelos Válidos
+// IA com Sistema de Fallback Multi-Modelo (Plano A, B, C, D, E)
 async function chamarGeminiComFallbackModelos(prompt) {
   const rawKey = process.env.GEMINI_API_KEY || process.env.GEMINI_KEY || '';
   const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
 
   if (!apiKey) {
-    console.log('⚠️️ Secret GEMINI_API_KEY não encontrada no GitHub Secrets!');
+    console.log('⚠️ Secret GEMINI_API_KEY não encontrada no GitHub Secrets!');
     return null;
   }
 
+  // Plano A, B, C, D e E com os modelos corretos indicados no seu log
   const modelos = [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro'
+    'gemini-3.8-flash',       // Plano A (Recomendado pela API)
+    'gemini-3.1-pro-preview', // Plano B
+    'gemini-2.5-flash',       // Plano C
+    'gemini-2.0-flash-exp',   // Plano D
+    'gemini-1.5-flash-latest' // Plano E
   ];
 
   for (const modelo of modelos) {
@@ -291,14 +295,14 @@ function gerarSEOTextoFallback(nomeJogo, peso, recursos) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
   
   const listaRecursosFormatada = recursos.map(rec => {
-    return `<li><strong>${rec}:</strong> Funcionalidade liberada para garantir total liberdade e facilidade durante suas partidas.</li>`;
+    return `<li><strong>${rec}:</strong> Recurso liberado para dar mais velocidade e controle no seu progresso durante as corridas.</li>`;
   }).join('\n');
 
   return `<div class="seo-content-box">
 
 <h2>Sobre o ${nomeLimpo} MOD APK <span class="cyanPostVersionDisplay"></span></h2>
-<p>Se você procura a versão mais recente e completa do <strong>${nomeLimpo} MOD APK</strong> para Android, chegou ao lugar ideal. Esta versão modificada traz melhorias visíveis e recursos exclusivos ativados para otimizar sua jogabilidade do início ao fim.</p>
-<p>Com jogabilidade fluida e todos os sistemas desbloqueados, você poderá aproveitar ao máximo tudo o que o jogo oferece sem limitações incômodas.</p>
+<p>Se você procura a versão mais recente e otimizada do <strong>${nomeLimpo} MOD APK</strong> para Android, está no lugar certo. Esta modificação melhora o fluxo do jogo e libera opções para uma experiência completa no seu celular.</p>
+<p>Desfrute de corridas de alta velocidade e gráficos incríveis com todas as facilidades do Mod totalmente ativadas.</p>
 
 <div class="seo-alert-box">
 <strong>Dica de Instalação:</strong> Certifique-se de desinstalar qualquer versão anterior do ${nomeLimpo} antes de instalar esta modificação para evitar erros de conflito.
@@ -409,7 +413,7 @@ async function executarPostagem() {
       }
 
       if (jogo.postado_blogger) {
-        console.log(`⏭️ Jogo "${idJogo}" já foi postado. Pulando...`);
+        console.log(`⏭️️ Jogo "${idJogo}" já foi postado. Pulando...`);
         continue;
       }
 
