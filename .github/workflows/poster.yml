@@ -41,6 +41,7 @@ jobs:
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
           GOOGLE_INDEXING_CREDENTIALS: ${{ secrets.GOOGLE_INDEXING_CREDENTIALS || secrets.GOOGLE_INDEXING }}
           INPUT_ID_JOGO: ${{ inputs.id_jogo }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           INPUT_FUNCOES_MOD: ${{ inputs.funcoes_mod }}
           INPUT_PESO_MB: ${{ inputs.peso_mb }}
         run: node poster.js
