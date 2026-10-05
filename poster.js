@@ -157,7 +157,6 @@ REGRAS RÍGIDAS:
 3. Seja direto e convidativo para download no Android.
 4. Retorne APENAS o texto corrido, sem aspas, sem explicações e sem formatação markdown.`;
 
-      // Endpoint corrigido para gemini-1.5-flash
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
       const res = await axios.post(
@@ -180,7 +179,6 @@ REGRAS RÍGIDAS:
     }
   }
 
-  // Fallback seguro com espaçamento correto
   const funcoesStr = recursos.slice(0, 2).join(' e ');
   let fallback = `Baixar ${nomeJogo.trim()} MOD APK ${vFormatada} com${funcoesStr} para Android. Download grátis e seguro!`.trim();
   if (fallback.length > 150) {
@@ -196,7 +194,7 @@ async function gerarConteudoSEOComIA(nomeJogo, peso, recursos) {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    console.log('⚠️ GEMINI_API_KEY não configurada. Gerando modelo estático padrão.');
+    console.log('⚠️️ GEMINI_API_KEY não configurada. Gerando modelo estático padrão.');
     return gerarSEOTextoFallback(nomeJogo, peso, recursos);
   }
 
@@ -245,21 +243,16 @@ ESTRUTURA EXATA DO HTML A RETORNAR:
 Não! Funciona perfeitamente em qualquer dispositivo Android sem necessidade de Root.</p>
 
 <p><strong>Como atualizar o jogo no futuro?</strong><br/>
-Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que forem lançadas.</p>
+Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que foram lançadas.</p>
 
 </div>`;
 
-    // Endpoint corrigido para gemini-1.5-flash
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const res = await axios.post(
       url,
-      {
-        contents: [{ parts: [{ text: prompt }] }]
-      },
-      {
-        headers: { 'Content-Type': 'application/json' }
-      }
+      { contents: [{ parts: [{ text: prompt }] }] },
+      { headers: { 'Content-Type': 'application/json' } }
     );
 
     let conteudoGerado = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -277,7 +270,6 @@ Adicione o nosso site aos seus favoritos para baixar as novas atualizações ass
   }
 }
 
-// Modelo reserva caso a IA falhe ou a chave não exista
 function gerarSEOTextoFallback(nomeJogo, peso, recursos) {
   return `<div class="seo-content-box">
 
@@ -306,7 +298,7 @@ ${recursos.map(rec => `<li><strong>${rec}:</strong> Recursos ativados e funciona
 Não! Funciona perfeitamente em qualquer dispositivo Android sem necessidade de Root.</p>
 
 <p><strong>Como atualizar o jogo no futuro?</strong><br/>
-Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que forem lançadas.</p>
+Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que foram lançadas.</p>
 
 </div>`;
 }
@@ -410,18 +402,41 @@ async function executarPostagem() {
       try {
         let response;
 
+        // Tenta atualizar se já tiver um ID no Firebase
         if (jogo.blogger_post_id) {
-          console.log(`🔄 Atualizando post existente no Blogger (ID: ${jogo.blogger_post_id})...`);
-          response = await blogger.posts.update({
-            blogId: BLOG_ID,
-            postId: jogo.blogger_post_id,
-            requestBody: {
-              title: tituloPost,
-              content: htmlPost,
-              labels: labels,
-              searchDescription: descricaoPesquisa
+          try {
+            console.log(`🔄 Atualizando post existente no Blogger (ID: ${jogo.blogger_post_id})...`);
+            response = await blogger.posts.update({
+              blogId: BLOG_ID,
+              postId: jogo.blogger_post_id,
+              requestBody: {
+                title: tituloPost,
+                content: htmlPost,
+                labels: labels,
+                searchDescription: descricaoPesquisa
+              }
+            });
+          } catch (errUpdate) {
+            // Se o post foi APAGADO manualmente no Blogger (404 / Requested entity was not found)
+            const isNotFound = errUpdate.status === 404 || 
+                               (errUpdate.response && errUpdate.response.status === 404) ||
+                               (errUpdate.message && errUpdate.message.includes('Requested entity was not found'));
+
+            if (isNotFound) {
+              console.log(`⚠️ Post ID ${jogo.blogger_post_id} foi APAGADO do Blogger! Criando um NOVO post do zero...`);
+              response = await blogger.posts.insert({
+                blogId: BLOG_ID,
+                requestBody: {
+                  title: tituloPost,
+                  content: htmlPost,
+                  labels: labels,
+                  searchDescription: descricaoPesquisa
+                }
+              });
+            } else {
+              throw errUpdate;
             }
-          });
+          }
         } else {
           console.log(`🆕 Criando novo post no Blogger...`);
           response = await blogger.posts.insert({
@@ -444,6 +459,7 @@ async function executarPostagem() {
 
         await notificarGoogleIndexing(urlPublicada);
 
+        // Atualiza o Firebase com o novo ID do post e nova URL
         await axios.patch(`${FIREBASE_BASE_URL}/jogos/${idJogo}.json`, {
           postado_blogger: true,
           blogger_post_id: response.data.id,
