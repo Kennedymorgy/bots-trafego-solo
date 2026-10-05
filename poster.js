@@ -133,6 +133,62 @@ function gerarScreenshotsHTML(screenshots) {
 }
 
 // =========================================================================
+// 🧠 GERADOR EXCLUSIVO DA DESCRIÇÃO DE PESQUISA (SEO SEARCH DESCRIPTION)
+// =========================================================================
+async function gerarDescricaoPesquisaComIA(nomeJogo, versao, recursos) {
+  let vFormatada = (versao || '').toString().trim();
+  if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
+    vFormatada = 'v' + vFormatada;
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (apiKey) {
+    try {
+      console.log(`🔍 Solicitando Descrição de Pesquisa (SEO) ao Gemini para "${nomeJogo}"...`);
+
+      const prompt = `Crie uma Meta Descrição (Descrição de Pesquisa SEO) super atraente para o jogo "${nomeJogo}" no Android.
+Versão atualizada: ${vFormatada || 'Atualizada'}.
+Recursos do Mod: ${recursos.slice(0, 3).join(', ')}.
+
+REGRAS RÍGIDAS:
+1. Deve ter NO MÁXIMO 145 CARACTERES (limite estrito do Blogger é 150).
+2. Inclua obrigatoriamente o nome do jogo, a versão exata (${vFormatada}) e os principais Mods.
+3. Seja direto e convidativo para download no Android.
+4. Retorne APENAS o texto corrido, sem aspas, sem explicações e sem formatação markdown.`;
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+      const res = await axios.post(
+        url,
+        { contents: [{ parts: [{ text: prompt }] }] },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+
+      let textoDesc = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (textoDesc) {
+        textoDesc = textoDesc.replace(/[\r\n"']/g, '').trim();
+        if (textoDesc.length > 150) {
+          textoDesc = textoDesc.substring(0, 147) + '...';
+        }
+        console.log(`🎯 Descrição de Pesquisa gerada (${textoDesc.length} chars): "${textoDesc}"`);
+        return textoDesc;
+      }
+    } catch (err) {
+      console.error('❌ Erro Gemini na Descrição de Pesquisa (usando fallback):', err.message);
+    }
+  }
+
+  // Fallback seguro se a IA falhar ou não tiver chave
+  const funcoesStr = recursos.slice(0, 2).join(' e ');
+  let fallback = `Baixar ${nomeJogo} MOD APK ${vFormatada} com${funcoesStr} para Android. Download grátis e seguro!`.trim();
+  if (fallback.length > 150) {
+    fallback = fallback.substring(0, 147) + '...';
+  }
+  return fallback;
+}
+
+// =========================================================================
 // 🧠 GERADOR EXCLUSIVO DA CAIXA DE SEO COM IA (GOOGLE GEMINI API)
 // =========================================================================
 async function gerarConteudoSEOComIA(nomeJogo, peso, recursos) {
@@ -188,7 +244,7 @@ ESTRUTURA EXATA DO HTML A RETORNAR:
 Não! Funciona perfeitamente em qualquer dispositivo Android sem necessidade de Root.</p>
 
 <p><strong>Como atualizar o jogo no futuro?</strong><br/>
-Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que forem lançadas.</p>
+Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que foram lançadas.</p>
 
 </div>`;
 
@@ -311,14 +367,14 @@ async function executarPostagem() {
       if (INPUT_PESO_MB) {
         updateData.peso = INPUT_PESO_MB;
       }
-      updateData.postado_blogger = false; // Força a postagem
+      updateData.postado_blogger = false; // Força a atualização/re-postagem
 
       console.log(`📡 Salvando novas funções e peso no Firebase para "${INPUT_ID_JOGO}"...`);
       await axios.patch(`${FIREBASE_BASE_URL}/jogos/${INPUT_ID_JOGO}.json`, updateData);
       console.log(`✅ Firebase atualizado com sucesso!`);
     }
 
-    // 2. Busca todos os jogos pendentes de postagem no Firebase
+    // 2. Busca todos os jogos no Firebase
     console.log('📡 Buscando lista de jogos no Firebase...');
     const res = await axios.get(`${FIREBASE_BASE_URL}/jogos.json`);
     const jogos = res.data;
@@ -349,23 +405,46 @@ async function executarPostagem() {
       const ehModMenu = labels.includes('MOD MENU');
       const tituloPost = gerarTituloInteligente(nomeJogo, jogo.versao, recursos, ehModMenu);
       
-      // Chama a construção do HTML (com IA no bloco 2)
+      // 🎯 GERANDO A DESCRIÇÃO DE PESQUISA (SEO) COM IA
+      const descricaoPesquisa = await gerarDescricaoPesquisaComIA(nomeJogo, jogo.versao, recursos);
+
+      // Chama a construção do HTML
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos);
 
       try {
-        const response = await blogger.posts.insert({
-          blogId: BLOG_ID,
-          requestBody: {
-            title: tituloPost,
-            content: htmlPost,
-            labels: labels
-          }
-        });
+        let response;
+
+        // Se o post já existe no Blogger, atualiza ele para a versão mais recente!
+        if (jogo.blogger_post_id) {
+          console.log(`🔄 Atualizando post existente no Blogger (ID: ${jogo.blogger_post_id})...`);
+          response = await blogger.posts.update({
+            blogId: BLOG_ID,
+            postId: jogo.blogger_post_id,
+            requestBody: {
+              title: tituloPost,
+              content: htmlPost,
+              labels: labels,
+              searchDescription: descricaoPesquisa
+            }
+          });
+        } else {
+          console.log(`🆕 Criando novo post no Blogger...`);
+          response = await blogger.posts.insert({
+            blogId: BLOG_ID,
+            requestBody: {
+              title: tituloPost,
+              content: htmlPost,
+              labels: labels,
+              searchDescription: descricaoPesquisa
+            }
+          });
+        }
 
         const urlPublicada = response.data.url;
-        console.log(`🚀 Post Publicado com Sucesso!`);
+        console.log(`🚀 Post Publicado/Atualizado com Sucesso!`);
         console.log(`📌 Título: ${tituloPost}`);
         console.log(`🏷️ Marcadores: ${labels.join(', ')}`);
+        console.log(`🔍 Descrição de Pesquisa (SEO): ${descricaoPesquisa}`);
         console.log(`🔗 URL: ${urlPublicada}`);
 
         await notificarGoogleIndexing(urlPublicada);
@@ -380,7 +459,7 @@ async function executarPostagem() {
 
       } catch (errBlogger) {
         if (errBlogger.response && errBlogger.response.status === 429) {
-          console.error(`⚠️️ Cota da API do Blogger atingida (429). Interrompendo temporariamente.`);
+          console.error(`⚠ Cota da API do Blogger atingida (429). Interrompendo temporariamente.`);
           break;
         } else {
           console.error(`❌ Erro ao postar "${idJogo}":`, errBlogger.message);
