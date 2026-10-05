@@ -115,7 +115,7 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   return Array.from(marcadores);
 }
 
-// Gerador de Titulo com Espacamento 100% Limpo
+// Gerador de Título com Espaçamento Corrigido
 function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
@@ -139,23 +139,21 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
-// Requisicao a IA Gemini com Plano A, B e C de Modelos
+// Requisição à IA Gemini com Modelos Oficiais Ativos
 async function chamarGeminiComFallbackModelos(prompt) {
   const rawKey = process.env.GEMINI_API_KEY || process.env.GEMINI_KEY || '';
   const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
 
   if (!apiKey) {
-    console.log('⚠️ Secret GEMINI_API_KEY nao encontrada no GitHub Secrets!');
+    console.log('⚠️ Secret GEMINI_API_KEY não encontrada no GitHub Secrets!');
     return null;
   }
 
-  // Lista atualizada de modelos suportados
+  // Modelos válidos da API Gemini
   const modelos = [
-    'gemini-3.8-flash',
-    'gemini-3.1-pro-preview',
-    'gemini-2.5-flash',
     'gemini-2.0-flash',
-    'gemini-1.5-flash'
+    'gemini-1.5-flash',
+    'gemini-1.5-pro'
   ];
 
   for (const modelo of modelos) {
@@ -172,20 +170,14 @@ async function chamarGeminiComFallbackModelos(prompt) {
 
       const texto = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (texto) {
-        console.log(`✨ IA (Gemini) respondeu com sucesso via modelo: ${modelo}`);
-        return texto;
-      }
-    } catch (err) {
-      const status = err.response?.status || 'Erro';
-      const detalhe = err.response?.data?.error?.message || err.message;
-      console.log(`⚠️ Modelo "${modelo}" indisponivel (${status}):${detalhe}`);
+        console.log(`✨ IA (Gemini) respondeu com sucesso via modelo: ${modelo}`);         return texto;       }     } catch (err) {       const status = err.response?.status \vert{}\vert{} 'Erro';       const detalhe = err.response?.data?.error?.message \vert{}\vert{} err.message;       console.log(`⚠️ Modelo "${modelo}" indisponível (${status}):${detalhe}`);
     }
   }
 
   return null;
 }
 
-// Descricao de Pesquisa (SEO)
+// Descrição de Pesquisa (SEO) Corrigida
 async function gerarDescricaoPesquisaComIA(nomeJogo, versao, recursos, ehModMenu) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
@@ -195,7 +187,7 @@ async function gerarDescricaoPesquisaComIA(nomeJogo, versao, recursos, ehModMenu
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
 
-  const prompt = `Crie uma Meta Descrição (Descrição de Pesquisa SEO) super atraente para o jogo "${nomeLimpo}" no Android.
+  const prompt = `Crie uma Meta Descrição (Descrição de Pesquisa SEO) atraente para o jogo "${nomeLimpo}" no Android.
 Versão atualizada: ${vFormatada || 'Atualizada'}.
 Tag: ${tagMod}.
 Recursos do Mod: ${recursos.slice(0, 3).join(', ')}.
@@ -227,7 +219,7 @@ REGRAS RÍGIDAS:
   return fallback;
 }
 
-// Bloco SEO de Conteudo
+// Bloco SEO de Conteúdo
 async function gerarConteudoSEOComIA(nomeJogo, peso, recursos) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
 
@@ -236,7 +228,7 @@ Sua única tarefa é gerar o HTML do bloco <div class="seo-content-box"> para o 
 
 REGRAS RÍGIDAS:
 1. Retorne APENAS o HTML da div com classe "seo-content-box". Não adicione explicações, comentários ou marcadores como \`\`\`html.
-2. Escreva em Português de forma atraente e inteligente.
+2. Escreva em Português de forma atraente, natural e fluida (como um humano escrevendo para jogadores).
 3. Para cada item da lista de recursos, crie uma frase explicativa realista e adaptada especificamente ao contexto do jogo "${nomeLimpo}".
 
 Tamanho do arquivo: ${peso}
@@ -289,20 +281,28 @@ Adicione o nosso site aos seus favoritos para baixar as novas atualizações ass
   return gerarSEOTextoFallback(nomeLimpo, peso, recursos);
 }
 
+// Fallback SEO Humanizado
 function gerarSEOTextoFallback(nomeJogo, peso, recursos) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
+  
+  const listaRecursosFormatada = recursos.map(rec => {
+    return `<li><strong>${rec}:</strong> Funcionalidade liberada para garantir total liberdade e facilidade durante suas partidas.</li>`;
+  }).join('\n');
+
   return `<div class="seo-content-box">
 
 <h2>Sobre o ${nomeLimpo} MOD APK <span class="cyanPostVersionDisplay"></span></h2>
-<p>Se você procura a versão atualizada do <strong>${nomeLimpo} MOD APK</strong> para Android, chegou ao lugar certo. Baixe a versão com Mod Menu ativo e recursos liberados para garantir a melhor experiência de jogo.</p>
+<p>Se você procura a versão mais recente e completa do <strong>${nomeLimpo} MOD APK</strong> para Android, chegou ao lugar ideal. Esta versão modificada traz melhorias visíveis e recursos exclusivos ativados para otimizar sua jogabilidade do início ao fim.</p>
+<p>Com jogabilidade fluida e todos os sistemas desbloqueados, você poderá aproveitar ao máximo tudo o que o jogo oferece sem limitações incômodas.</p>
 
 <div class="seo-alert-box">
 <strong>Dica de Instalação:</strong> Certifique-se de desinstalar qualquer versão anterior do ${nomeLimpo} antes de instalar esta modificação para evitar erros de conflito.
 </div>
 
 <h2>Principais Recursos do Mod Menu</h2>
+<p>Confira as vantagens ativas nesta versão modificada do ${nomeLimpo}:</p>
 <ul>
-${recursos.map(rec => `<li><strong>${rec}:</strong> Recursos ativados e funcionais nesta versão.</li>`).join('\n')}
+${listaRecursosFormatada}
 </ul>
 
 <h2>Requisitos e Como Instalar no Android</h2>
@@ -318,7 +318,7 @@ ${recursos.map(rec => `<li><strong>${rec}:</strong> Recursos ativados e funciona
 Não! Funciona perfeitamente em qualquer dispositivo Android sem necessidade de Root.</p>
 
 <p><strong>Como atualizar o jogo no futuro?</strong><br/>
-Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que foram lançadas.</p>
+Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que forem lançadas.</p>
 
 </div>`;
 }
