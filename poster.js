@@ -23,6 +23,16 @@ oauth2Client.setCredentials({
 
 const blogger = google.blogger({ version: 'v3', auth: oauth2Client });
 
+// Remove repeticoes de MOD e garante espacamento correto
+function limparNomeJogo(nome) {
+  if (!nome) return '';
+  return nome
+    .toString()
+    .replace(/MOD\s*(APK|MENU)?/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // Google Indexing API
 async function notificarGoogleIndexing(urlPost) {
   try {
@@ -69,12 +79,13 @@ function obterRecursosDoJogo(jogo) {
   return ['Mod Menu Atualizado', 'Recursos Ilimitados', 'Sem Anúncios', 'Anti-Ban Integrado'];
 }
 
-// Define Marcadores Sem Repetição
+// Define Marcadores Sem Repeticao
 function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   const marcadores = new Set();
-  const textoCompleto = `${nomeJogo}${recursos.join(' ')}`.toLowerCase();
+  const nomeLimpo = limparNomeJogo(nomeJogo);
+  const textoCompleto = `${nomeLimpo}${recursos.join(' ')}`.toLowerCase();
 
-  marcadores.add(nomeJogo.trim());
+  marcadores.add(nomeLimpo);
 
   if (jogo.categoria) {
     marcadores.add(jogo.categoria.trim());
@@ -104,17 +115,14 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   return Array.from(marcadores);
 }
 
-// Gerador de Título com Espaçamento Forçado
+// Gerador de Titulo com Espacamento 100% Limpo
 function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
     vFormatada = 'v' + vFormatada;
   }
 
-  let nomeLimpo = nomeJogo.toString()
-    .replace(/\s*MOD\s*(APK|MENU)?/gi, '')
-    .trim();
-
+  const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
   const funcoesTitulo = recursos.slice(0, 10).join(' / ');
 
@@ -131,22 +139,23 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
-// Requisição à IA Gemini com Fallback de Modelos Atualizados
+// Requisicao a IA Gemini com Plano A, B e C de Modelos
 async function chamarGeminiComFallbackModelos(prompt) {
   const rawKey = process.env.GEMINI_API_KEY || process.env.GEMINI_KEY || '';
   const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
 
   if (!apiKey) {
-    console.log('⚠️ Secret GEMINI_API_KEY não encontrada no GitHub Secrets!');
+    console.log('⚠️ Secret GEMINI_API_KEY nao encontrada no GitHub Secrets!');
     return null;
   }
 
+  // Lista atualizada de modelos suportados
   const modelos = [
+    'gemini-3.8-flash',
+    'gemini-3.1-pro-preview',
     'gemini-2.5-flash',
     'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-3.1-pro-preview',
-    'gemini-1.5-pro'
+    'gemini-1.5-flash'
   ];
 
   for (const modelo of modelos) {
@@ -169,24 +178,21 @@ async function chamarGeminiComFallbackModelos(prompt) {
     } catch (err) {
       const status = err.response?.status || 'Erro';
       const detalhe = err.response?.data?.error?.message || err.message;
-      console.log(`⚠️ Modelo "${modelo}" indisponível (${status}):${detalhe}`);
+      console.log(`⚠️ Modelo "${modelo}" indisponivel (${status}):${detalhe}`);
     }
   }
 
   return null;
 }
 
-// Descrição de Pesquisa (SEO)
+// Descricao de Pesquisa (SEO)
 async function gerarDescricaoPesquisaComIA(nomeJogo, versao, recursos, ehModMenu) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
     vFormatada = 'v' + vFormatada;
   }
 
-  let nomeLimpo = nomeJogo.toString()
-    .replace(/\s*MOD\s*(APK|MENU)?/gi, '')
-    .trim();
-
+  const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
 
   const prompt = `Crie uma Meta Descrição (Descrição de Pesquisa SEO) super atraente para o jogo "${nomeLimpo}" no Android.
@@ -204,7 +210,7 @@ REGRAS RÍGIDAS:
   const respostaIA = await chamarGeminiComFallbackModelos(prompt);
 
   if (respostaIA) {
-    let textoDesc = respostaIA.replace(/[\r\n"']/g, '').trim();
+    let textoDesc = respostaIA.replace(/[\r\n"']/g, '').replace(/\s+/g, ' ').trim();
     if (textoDesc.length > 150) {
       textoDesc = textoDesc.substring(0, 147) + '...';
     }
@@ -221,11 +227,9 @@ REGRAS RÍGIDAS:
   return fallback;
 }
 
-// Bloco SEO de Conteúdo
+// Bloco SEO de Conteudo
 async function gerarConteudoSEOComIA(nomeJogo, peso, recursos) {
-  let nomeLimpo = nomeJogo.toString()
-    .replace(/\s*MOD\s*(APK|MENU)?/gi, '')
-    .trim();
+  const nomeLimpo = limparNomeJogo(nomeJogo);
 
   const prompt = `Você é um especialista em SEO para blogs de jogos e mods para Android.
 Sua única tarefa é gerar o HTML do bloco <div class="seo-content-box"> para o jogo "${nomeLimpo}".
@@ -286,13 +290,14 @@ Adicione o nosso site aos seus favoritos para baixar as novas atualizações ass
 }
 
 function gerarSEOTextoFallback(nomeJogo, peso, recursos) {
+  const nomeLimpo = limparNomeJogo(nomeJogo);
   return `<div class="seo-content-box">
 
-<h2>Sobre o ${nomeJogo} MOD APK <span class="cyanPostVersionDisplay"></span></h2>
-<p>Se você procura a versão atualizada do <strong>${nomeJogo} MOD APK</strong> para Android, chegou ao lugar certo. Baixe a versão com Mod Menu ativo e recursos liberados para garantir a melhor experiência de jogo.</p>
+<h2>Sobre o ${nomeLimpo} MOD APK <span class="cyanPostVersionDisplay"></span></h2>
+<p>Se você procura a versão atualizada do <strong>${nomeLimpo} MOD APK</strong> para Android, chegou ao lugar certo. Baixe a versão com Mod Menu ativo e recursos liberados para garantir a melhor experiência de jogo.</p>
 
 <div class="seo-alert-box">
-<strong>Dica de Instalação:</strong> Certifique-se de desinstalar qualquer versão anterior do ${nomeJogo} antes de instalar esta modificação para evitar erros de conflito.
+<strong>Dica de Instalação:</strong> Certifique-se de desinstalar qualquer versão anterior do ${nomeLimpo} antes de instalar esta modificação para evitar erros de conflito.
 </div>
 
 <h2>Principais Recursos do Mod Menu</h2>
@@ -320,23 +325,24 @@ Adicione o nosso site aos seus favoritos para baixar as novas atualizações ass
 
 async function construirHTMLPost(jogo, idJogo, recursos) {
   const nomeJogo = jogo.nome || idJogo.replace(/-/g, ' ');
+  const nomeLimpo = limparNomeJogo(nomeJogo);
   const capa = jogo.foto || '';
   const playstore = jogo.playstore_link || '';
   const downloadLink = `${WORKER_BASE}?id=${idJogo}`;
   const peso = jogo.peso || 'Varia com o dispositivo';
   const screenshots = jogo.screenshots || [];
 
-  const blocoSEO = await gerarConteudoSEOComIA(nomeJogo, peso, recursos);
+  const blocoSEO = await gerarConteudoSEOComIA(nomeLimpo, peso, recursos);
 
   return `<!--more-->
 <!-- ======================================================== -->
 <!-- 1. DADOS OCULTOS LIDOS AUTOMATICAMENTE PELO TEMA         -->
 <!-- ======================================================== -->
 
-<span id="cyanPostName" style="display:none;">${nomeJogo}</span>
+<span id="cyanPostName" style="display:none;">${nomeLimpo}</span>
 
 <div class="post-cover-wrapper" style="display:none;">
-  <img src="${capa}" alt="${nomeJogo} Mod APK" />
+  <img src="${capa}" alt="${nomeLimpo} Mod APK" />
 </div>
 <span id="rawCoverImage" style="display:none;">${capa}</span>
 
