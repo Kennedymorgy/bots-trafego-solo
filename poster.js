@@ -104,7 +104,7 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   return Array.from(marcadores);
 }
 
-// Gerador de Título com Espaçamento 100% Garantido
+// Gerador de Título com Espaçamento Forçado
 function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
@@ -112,7 +112,7 @@ function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   }
 
   let nomeLimpo = nomeJogo.toString()
-    .replace(/MOD\s*(APK|MENU)?/gi, '')
+    .replace(/\s*MOD\s*(APK|MENU)?/gi, '')
     .trim();
 
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
@@ -131,22 +131,22 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
-// Requisição à IA Gemini com Fallback de Modelos
+// Requisição à IA Gemini com Fallback de Modelos Atualizados
 async function chamarGeminiComFallbackModelos(prompt) {
   const rawKey = process.env.GEMINI_API_KEY || process.env.GEMINI_KEY || '';
   const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
 
   if (!apiKey) {
-    console.log('⚠️️ Secret GEMINI_API_KEY não encontrada no GitHub Secrets!');
+    console.log('⚠️ Secret GEMINI_API_KEY não encontrada no GitHub Secrets!');
     return null;
   }
 
   const modelos = [
     'gemini-2.5-flash',
-    'gemini-1.5-flash',
     'gemini-2.0-flash',
-    'gemini-1.5-pro',
-    'gemini-2.5-pro'
+    'gemini-1.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-1.5-pro'
   ];
 
   for (const modelo of modelos) {
@@ -184,7 +184,7 @@ async function gerarDescricaoPesquisaComIA(nomeJogo, versao, recursos, ehModMenu
   }
 
   let nomeLimpo = nomeJogo.toString()
-    .replace(/MOD\s*(APK|MENU)?/gi, '')
+    .replace(/\s*MOD\s*(APK|MENU)?/gi, '')
     .trim();
 
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
@@ -224,7 +224,7 @@ REGRAS RÍGIDAS:
 // Bloco SEO de Conteúdo
 async function gerarConteudoSEOComIA(nomeJogo, peso, recursos) {
   let nomeLimpo = nomeJogo.toString()
-    .replace(/MOD\s*(APK|MENU)?/gi, '')
+    .replace(/\s*MOD\s*(APK|MENU)?/gi, '')
     .trim();
 
   const prompt = `Você é um especialista em SEO para blogs de jogos e mods para Android.
@@ -482,7 +482,7 @@ async function executarPostagem() {
 
       } catch (errBlogger) {
         if (errBlogger.response && errBlogger.response.status === 429) {
-          console.error(`⚠️️ Cota da API do Blogger atingida (429). Interrompendo temporariamente.`);
+          console.error(`⚠ Cota da API do Blogger atingida (429). Interrompendo temporariamente.`);
           break;
         } else {
           console.error(`❌ Erro ao postar "${idJogo}":`, errBlogger.message);
