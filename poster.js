@@ -110,7 +110,7 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   return Array.from(marcadores);
 }
 
-// Gerador de Título Otimizado (Até 10 Funções da caixinha)
+// Gerador de Título Otimizado com espaço garantido
 function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
@@ -120,7 +120,7 @@ function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
   const funcoesTitulo = recursos.slice(0, 10).join(' / ');
 
-  return `${nomeJogo}${tagMod} ${vFormatada} (${funcoesTitulo})`;
+  return `${nomeJogo.trim()}${tagMod} ${vFormatada} (${funcoesTitulo})`.trim();
 }
 
 function gerarModTagsHTML(recursos) {
@@ -157,7 +157,8 @@ REGRAS RÍGIDAS:
 3. Seja direto e convidativo para download no Android.
 4. Retorne APENAS o texto corrido, sem aspas, sem explicações e sem formatação markdown.`;
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      // Endpoint corrigido para gemini-1.5-flash
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
       const res = await axios.post(
         url,
@@ -179,9 +180,9 @@ REGRAS RÍGIDAS:
     }
   }
 
-  // Fallback seguro se a IA falhar ou não tiver chave
+  // Fallback seguro com espaçamento correto
   const funcoesStr = recursos.slice(0, 2).join(' e ');
-  let fallback = `Baixar ${nomeJogo} MOD APK ${vFormatada} com${funcoesStr} para Android. Download grátis e seguro!`.trim();
+  let fallback = `Baixar ${nomeJogo.trim()} MOD APK ${vFormatada} com${funcoesStr} para Android. Download grátis e seguro!`.trim();
   if (fallback.length > 150) {
     fallback = fallback.substring(0, 147) + '...';
   }
@@ -208,7 +209,7 @@ Sua única tarefa é gerar o HTML do bloco <div class="seo-content-box"> para o 
 REGRAS RÍGIDAS:
 1. Retorne APENAS o HTML da div com classe "seo-content-box". Não adicione explicações, comentários ou marcadores como \`\`\`html.
 2. Escreva em Português do Brasil de forma atraente e inteligente.
-3. Para cada item da lista de recursos, crie uma frase explicativa realista e adaptada especificamente ao contexto do jogo "${nomeJogo}" (ex: "Dinheiro Infinito": compre qualquer veículo ou melhoria na loja sem zerar suas moedas).
+3. Para cada item da lista de recursos, crie uma frase explicativa realista e adaptada especificamente ao contexto do jogo "${nomeJogo}".
 
 Tamanho do arquivo: ${peso}
 Recursos do Mod:
@@ -244,11 +245,12 @@ ESTRUTURA EXATA DO HTML A RETORNAR:
 Não! Funciona perfeitamente em qualquer dispositivo Android sem necessidade de Root.</p>
 
 <p><strong>Como atualizar o jogo no futuro?</strong><br/>
-Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que foram lançadas.</p>
+Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que forem lançadas.</p>
 
 </div>`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    // Endpoint corrigido para gemini-1.5-flash
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const res = await axios.post(
       url,
@@ -317,7 +319,6 @@ async function construirHTMLPost(jogo, idJogo, recursos) {
   const peso = jogo.peso || 'Varia com o dispositivo';
   const screenshots = jogo.screenshots || [];
 
-  // Gera APENAS o bloco visível de SEO usando IA
   const blocoSEO = await gerarConteudoSEOComIA(nomeJogo, peso, recursos);
 
   return `<!--more-->
@@ -356,7 +357,6 @@ ${blocoSEO}`;
 
 async function executarPostagem() {
   try {
-    // 1. Se você passou os dados no botão "Run" do GitHub, atualiza o Firebase primeiro
     if (INPUT_ID_JOGO) {
       console.log(`📝 Dados recebidos na execução para o ID: "${INPUT_ID_JOGO}"`);
       const updateData = {};
@@ -367,14 +367,13 @@ async function executarPostagem() {
       if (INPUT_PESO_MB) {
         updateData.peso = INPUT_PESO_MB;
       }
-      updateData.postado_blogger = false; // Força a atualização/re-postagem
+      updateData.postado_blogger = false;
 
       console.log(`📡 Salvando novas funções e peso no Firebase para "${INPUT_ID_JOGO}"...`);
       await axios.patch(`${FIREBASE_BASE_URL}/jogos/${INPUT_ID_JOGO}.json`, updateData);
       console.log(`✅ Firebase atualizado com sucesso!`);
     }
 
-    // 2. Busca todos os jogos no Firebase
     console.log('📡 Buscando lista de jogos no Firebase...');
     const res = await axios.get(`${FIREBASE_BASE_URL}/jogos.json`);
     const jogos = res.data;
@@ -387,7 +386,6 @@ async function executarPostagem() {
     for (const idJogo in jogos) {
       const jogo = jogos[idJogo];
 
-      // Se passou um ID no Run, foca apenas nele. Se não, processa os pendentes.
       if (INPUT_ID_JOGO && idJogo !== INPUT_ID_JOGO) {
         continue;
       }
@@ -405,16 +403,13 @@ async function executarPostagem() {
       const ehModMenu = labels.includes('MOD MENU');
       const tituloPost = gerarTituloInteligente(nomeJogo, jogo.versao, recursos, ehModMenu);
       
-      // 🎯 GERANDO A DESCRIÇÃO DE PESQUISA (SEO) COM IA
       const descricaoPesquisa = await gerarDescricaoPesquisaComIA(nomeJogo, jogo.versao, recursos);
 
-      // Chama a construção do HTML
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos);
 
       try {
         let response;
 
-        // Se o post já existe no Blogger, atualiza ele para a versão mais recente!
         if (jogo.blogger_post_id) {
           console.log(`🔄 Atualizando post existente no Blogger (ID: ${jogo.blogger_post_id})...`);
           response = await blogger.posts.update({
