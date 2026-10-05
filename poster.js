@@ -139,17 +139,16 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
-// Requisição à IA Gemini com Modelos Oficiais Ativos
+// Requisição à IA Gemini com Modelos Válidos
 async function chamarGeminiComFallbackModelos(prompt) {
   const rawKey = process.env.GEMINI_API_KEY || process.env.GEMINI_KEY || '';
   const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
 
   if (!apiKey) {
-    console.log('⚠️ Secret GEMINI_API_KEY não encontrada no GitHub Secrets!');
+    console.log('⚠️️ Secret GEMINI_API_KEY não encontrada no GitHub Secrets!');
     return null;
   }
 
-  // Modelos válidos da API Gemini
   const modelos = [
     'gemini-2.0-flash',
     'gemini-1.5-flash',
@@ -170,14 +169,20 @@ async function chamarGeminiComFallbackModelos(prompt) {
 
       const texto = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (texto) {
-        console.log(`✨ IA (Gemini) respondeu com sucesso via modelo: ${modelo}`);         return texto;       }     } catch (err) {       const status = err.response?.status \vert{}\vert{} 'Erro';       const detalhe = err.response?.data?.error?.message \vert{}\vert{} err.message;       console.log(`⚠️ Modelo "${modelo}" indisponível (${status}):${detalhe}`);
+        console.log(`✨ IA (Gemini) respondeu com sucesso via modelo: ${modelo}`);
+        return texto;
+      }
+    } catch (err) {
+      const status = err.response?.status || 'Erro';
+      const detalhe = err.response?.data?.error?.message || err.message;
+      console.log(`⚠️ Modelo "${modelo}" indisponível (${status}):${detalhe}`);
     }
   }
 
   return null;
 }
 
-// Descrição de Pesquisa (SEO) Corrigida
+// Descrição de Pesquisa (SEO)
 async function gerarDescricaoPesquisaComIA(nomeJogo, versao, recursos, ehModMenu) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
@@ -318,7 +323,7 @@ ${listaRecursosFormatada}
 Não! Funciona perfeitamente em qualquer dispositivo Android sem necessidade de Root.</p>
 
 <p><strong>Como atualizar o jogo no futuro?</strong><br/>
-Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que forem lançadas.</p>
+Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que foram lançadas.</p>
 
 </div>`;
 }
