@@ -157,7 +157,6 @@ function interpretarRecursoParaSEO(recurso, nomeJogo) {
   const recLower = recurso.toLowerCase();
   const jogoLower = nomeJogo.toLowerCase();
 
-  // Contexto para jogos de corrida / veículos (NFS, FR Legends, etc.)
   const eCorrida = ['nfs', 'need for speed', 'fr legends', 'asphalt', 'real racing', 'carro', 'corrida'].some(k => jogoLower.includes(k));
 
   if (recLower.includes('dinheiro') || recLower.includes('ouro') || recLower.includes('coins') || recLower.includes('grana') || recLower.includes('gemas')) {
@@ -199,7 +198,6 @@ function interpretarRecursoParaSEO(recurso, nomeJogo) {
     return `Conteúdo premium totalmente liberado para você aproveitar tudo que o ${nomeJogo} tem a oferecer sem precisar passar horas jogando para desbloquear.`;
   }
 
-  // Fallback inteligente customizado para qualquer outro mod específico
   return `Vantagem exclusiva de "${recurso}" aplicada de forma otimizada para turbinar sua gameplay em ${nomeJogo}.`;
 }
 
@@ -318,7 +316,7 @@ async function executarPostagem() {
     const jogos = res.data;
 
     if (!jogos) {
-      console.log('⚠️️ Nenhum jogo encontrado no Firebase.');
+      console.log('⚠ Nenhum jogo encontrado no Firebase.');
       return;
     }
 
@@ -345,12 +343,12 @@ async function executarPostagem() {
       const descricaoPesquisa = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos);
 
-      // Objeto enviado para a API do Blogger com o campo correto 'searchDescription'
+      // CORREÇÃO DEFINITIVA: A API do Blogger exige a Descrição de Pesquisa dentro de 'customMetaData'
       const postBody = {
         title: tituloPost,
         content: htmlPost,
         labels: labels,
-        searchDescription: descricaoPesquisa
+        customMetaData: descricaoPesquisa
       };
 
       try {
@@ -370,7 +368,7 @@ async function executarPostagem() {
                                (errUpdate.message && errUpdate.message.includes('Requested entity was not found'));
 
             if (isNotFound) {
-              console.log(`⚠️️ Post ID ${jogo.blogger_post_id} foi APAGADO do Blogger! Criando um NOVO post do zero...`);
+              console.log(`⚠ Post ID ${jogo.blogger_post_id} foi APAGADO do Blogger! Criando um NOVO post do zero...`);
               response = await blogger.posts.insert({
                 blogId: BLOG_ID,
                 requestBody: postBody
