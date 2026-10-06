@@ -23,7 +23,6 @@ oauth2Client.setCredentials({
 
 const blogger = google.blogger({ version: 'v3', auth: oauth2Client });
 
-// Remove repetições de MOD e garante espaçamento correto
 function limparNomeJogo(nome) {
   if (!nome) return '';
   return nome
@@ -33,7 +32,6 @@ function limparNomeJogo(nome) {
     .trim();
 }
 
-// Google Indexing API
 async function notificarGoogleIndexing(urlPost) {
   try {
     const credsRaw = process.env.GOOGLE_INDEXING_CREDENTIALS || process.env.GOOGLE_INDEXING;
@@ -66,7 +64,6 @@ async function notificarGoogleIndexing(urlPost) {
   }
 }
 
-// Trata os Recursos do Jogo
 function obterRecursosDoJogo(jogo) {
   if (jogo.recursos_mod) {
     if (Array.isArray(jogo.recursos_mod) && jogo.recursos_mod.length > 0) {
@@ -76,10 +73,9 @@ function obterRecursosDoJogo(jogo) {
       return jogo.recursos_mod.split(',').map(r => r.trim()).filter(r => r !== '');
     }
   }
-  return ['Mod Menu Atualizado', 'Recursos Ilimitados', 'Sem Anúncios', 'Anti-Ban Integrado'];
+  return ['Mod Menu Atualizado', 'Recursos Ilimitados', 'Sem Anúncios'];
 }
 
-// Define Marcadores Sem Repetição
 function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   const marcadores = new Set();
   const nomeLimpo = limparNomeJogo(nomeJogo);
@@ -115,7 +111,6 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   return Array.from(marcadores);
 }
 
-// Gerador de Título com Espaço Corrigido
 function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
@@ -139,7 +134,6 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
-// Bot Inteligente para Descrição de Pesquisa (SEO)
 function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
   let vFormatada = (versao || '').toString().trim();
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
@@ -150,7 +144,7 @@ function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
   const funcoesStr = recursos.slice(0, 2).join(' e ');
 
-  let desc = `Baixar ${nomeLimpo} ${tagMod} ${vFormatada} com ${funcoesStr} para Android. Download grátis, seguro e atualizado!`;
+  let desc = `Baixar ${nomeLimpo} ${tagMod} ${vFormatada} com ${funcoesStr} para Android. Versão atualizada, segura e com download direto!`;
   desc = desc.replace(/\s+/g, ' ').trim();
   if (desc.length > 150) {
     desc = desc.substring(0, 147) + '...';
@@ -158,46 +152,61 @@ function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
   return desc;
 }
 
-// Bot Inteligente com regras separadas e únicas para cada tipo de recurso
+// Bot de SEO Hiper-Inteligente: Adapta 100% o contexto de acordo com o jogo e cada recurso
 function interpretarRecursoParaSEO(recurso, nomeJogo) {
   const recLower = recurso.toLowerCase();
+  const jogoLower = nomeJogo.toLowerCase();
 
-  if (recLower.includes('dinheiro') || recLower.includes('ouro') || recLower.includes('coins') || recLower.includes('grana')) {
-    return `Tenha dinheiro infinito para comprar veículos, melhorias e itens livremente na loja do ${nomeJogo}.`;
+  // Contexto para jogos de corrida / veículos (NFS, FR Legends, etc.)
+  const eCorrida = ['nfs', 'need for speed', 'fr legends', 'asphalt', 'real racing', 'carro', 'corrida'].some(k => jogoLower.includes(k));
+
+  if (recLower.includes('dinheiro') || recLower.includes('ouro') || recLower.includes('coins') || recLower.includes('grana') || recLower.includes('gemas')) {
+    if (eCorrida) {
+      return `Garanta recursos financeiros ilimitados para comprar carros potentes, fazer tunagem completa e adquirir qualquer peça na oficina do ${nomeJogo} sem se preocupar com o preço.`;
+    }
+    return `Tenha saldo ilimitado para comprar todos os itens, melhorias e desbloqueios da loja do ${nomeJogo} de forma totalmente livre.`;
   }
+
   if (recLower.includes('compra') || recLower.includes('in-app') || recLower.includes('gratuita')) {
-    return `Faça compras in-app totalmente gratuitas sem gastar nada do seu dinheiro real.`;
-  }
-  if (recLower.includes('carro') || recLower.includes('veículo')) {
-    return `Todos os carros e veículos do ${nomeJogo} vêm completamente desbloqueados desde o início para você acelerar.`;
-  }
-  if (recLower.includes('mapa') || recLower.includes('pista') || recLower.includes('fase') || recLower.includes('mundo')) {
-    return `Mapas, pistas e fases liberadas para você explorar cada canto sem restrições.`;
-  }
-  if (recLower.includes('anúncio') || recLower.includes('ads') || recLower.includes('sem anúncios')) {
-    return `Anúncios irritantes removidos para você jogar com total foco, fluidez e sem interrupções.`;
-  }
-  if (recLower.includes('menu') || recLower.includes('mod menu')) {
-    return `Menu flutuante exclusivo ativável em tempo real diretamente na tela durante as partidas.`;
-  }
-  if (recLower.includes('munição') || recLower.includes('tiro') || recLower.includes('arma')) {
-    return `Munição infinita e armamento liberado para dominar os combates com facilidade.`;
-  }
-  if (recLower.includes('vida') || recLower.includes('imortal') || recLower.includes('god mode') || recLower.includes('hp')) {
-    return `Modo imortal e energia infinita para resistir a qualquer dano dos adversários.`;
-  }
-  if (recLower.includes('desbloqueado') || recLower.includes('all unlocked')) {
-    return `Conteúdo completo liberado para você aproveitar tudo que o jogo oferece sem travas.`;
+    return `Sistema de pagamentos interno modificado para você adquirir pacotes e itens premium totalmente de graça, sem gastar dinheiro real.`;
   }
 
-  // Fallback inteligente caso seja um recurso personalizado
-  return `Recurso "${recurso}" ativado e funcional para garantir a melhor experiência no ${nomeJogo}.`;
+  if (recLower.includes('carro') || recLower.includes('veículo')) {
+    return `Todos os carros, modelos e veículos do ${nomeJogo} já vêm completamente desbloqueados e disponíveis na garagem desde o primeiro acesso.`;
+  }
+
+  if (recLower.includes('mapa') || recLower.includes('pista') || recLower.includes('fase') || recLower.includes('mundo')) {
+    return `Todas as pistas, mapas e fases do ${nomeJogo} estão abertas para você explorar e competir sem restrições ou bloqueios de progresso.`;
+  }
+
+  if (recLower.includes('anúncio') || recLower.includes('ads') || recLower.includes('sem anúncios')) {
+    return `Anúncios chatos e pop-ups removidos por completo, permitindo que você jogue ${nomeJogo} com máxima fluidez e foco total na diversão.`;
+  }
+
+  if (recLower.includes('menu') || recLower.includes('mod menu')) {
+    return `Painel flutuante exclusivo integrado ao ${nomeJogo}, permitindo ativar e desativar várias vantagens diretamente na tela durante as partidas.`;
+  }
+
+  if (recLower.includes('munição') || recLower.includes('tiro') || recLower.includes('arma')) {
+    return `Munição infinita e armamento liberado para dominar os confrontos sem risco de ficar desarmado no ${nomeJogo}.`;
+  }
+
+  if (recLower.includes('vida') || recLower.includes('imortal') || recLower.includes('god mode') || recLower.includes('energia')) {
+    return `Modo imortal e energia infinita ativados para garantir que seu personagem suporte qualquer dano ou obstáculo no ${nomeJogo}.`;
+  }
+
+  if (recLower.includes('desbloqueado') || recLower.includes('all unlocked')) {
+    return `Conteúdo premium totalmente liberado para você aproveitar tudo que o ${nomeJogo} tem a oferecer sem precisar passar horas jogando para desbloquear.`;
+  }
+
+  // Fallback inteligente customizado para qualquer outro mod específico
+  return `Vantagem exclusiva de "${recurso}" aplicada de forma otimizada para turbinar sua gameplay em ${nomeJogo}.`;
 }
 
-// Bot Inteligente para Gerar o Conteúdo SEO Completo e Contextualizado
-function gerarConteudoSEOBot(nomeJogo, peso, recursos) {
+function gerarConteudoSEOBot(nomeJogo, peso, recursos, ehModMenu) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
-  
+  const tipoModStr = ehModMenu ? 'Mod Menu' : 'Mod APK';
+
   const listaRecursosFormatada = recursos.map(rec => {
     const explicacao = interpretarRecursoParaSEO(rec, nomeLimpo);
     return `<li><strong>${rec}:</strong> ${explicacao}</li>`;
@@ -205,34 +214,34 @@ function gerarConteudoSEOBot(nomeJogo, peso, recursos) {
 
   return `<div class="seo-content-box">
 
-<h2>Sobre o ${nomeLimpo} MOD APK <span class="cyanPostVersionDisplay"></span></h2>
-<p>Se você procura a versão mais recente e otimizada do <strong>${nomeLimpo} MOD APK</strong> para Android, está no lugar certo. Esta modificação melhora o desempenho geral e libera opções avançadas para uma experiência completa no seu dispositivo.</p>
-<p>Aproveite todas as vantagens, gráficos melhorados e recursos exclusivos totalmente liberados para se divertir ao máximo no seu celular.</p>
+<h2>Sobre o ${nomeLimpo} ${tipoModStr} <span class="cyanPostVersionDisplay"></span></h2>
+<p>Procurando a versão mais recente e otimizada do <strong>${nomeLimpo} ${tipoModStr}</strong> para Android? Aqui você baixa com segurança, velocidade e total estabilidade. Esta modificação aprimora o desempenho do jogo e remove barreiras chatas para elevar sua experiência.</p>
+<p>Aproveite gráficos ajustados, comandos otimizados e recursos exclusivos liberados para curtir o ${nomeLimpo} ao máximo no seu smartphone.</p>
 
 <div class="seo-alert-box">
-<strong>Dica de Instalação:</strong> Certifique-se de desinstalar qualquer versão anterior do ${nomeLimpo} antes de instalar esta modificação para evitar erros de conflito na instalação.
+<strong>Dica de Instalação:</strong> Para evitar conflitos ou erros de pacote no ${nomeLimpo}, lembre-se de desinstalar qualquer versão anterior que esteja instalada no seu celular antes de aplicar este update.
 </div>
 
-<h2>Principais Recursos do Mod Menu</h2>
-<p>Confira todas as vantagens ativas nesta versão modificada do ${nomeLimpo}:</p>
+<h2>Principais Recursos do ${tipoModStr}</h2>
+<p>Veja em detalhes o que foi modificado e otimizado nesta versão do ${nomeLimpo}:</p>
 <ul>
 ${listaRecursosFormatada}
 </ul>
 
 <h2>Requisitos e Como Instalar no Android</h2>
-<p>O arquivo possui tamanho aproximado de <strong>${peso}</strong> e requer Android 5.0 ou superior. Siga os passos simples para instalar:</p>
+<p>O arquivo APK pesa aproximadamente <strong>${peso}</strong> e foi testado para rodar perfeitamente em dispositivos com Android 5.0 ou superior. Siga o passo a passo para instalar:</p>
 <ol>
-<li>Faça o download do arquivo APK clicando no botão de download acima.</li>
-<li>Ative a opção <em>Fontes Desconhecidas</em> nas configurações de segurança do seu celular Android.</li>
-<li>Instale o arquivo baixado e divirta-se sem limites!</li>
+<li>Toque no botão de download localizado acima para baixar o arquivo atualizado.</li>
+<li>Permita a instalação nas configurações do seu celular ativando a opção de <em>Fontes Desconhecidas</em>, caso solicitado.</li>
+<li>Abra o arquivo baixado, conclua a instalação e divirta-se sem limites!</li>
 </ol>
 
 <h2>Perguntas Frequentes (FAQ)</h2>
-<p><strong>O Mod precisa de Root no celular?</strong><br/>
-Não! Funciona perfeitamente em qualquer dispositivo Android padrão sem necessidade de Root.</p>
+<p><strong>É necessário ter Root no Android para jogar o ${nomeLimpo}?</strong><br/>
+Não! O jogo roda perfeitamente em aparelhos padrão sem necessidade de root.</p>
 
-<p><strong>Como atualizar o jogo no futuro?</strong><br/>
-Adicione o nosso site aos seus favoritos para baixar as novas atualizações assim que forem lançadas.</p>
+<p><strong>Como recebo novas atualizações do ${nomeLimpo}?</strong><br/>
+Salve o nosso site nos favoritos do seu navegador para retornar e baixar novas versões sempre que forem lançadas.</p>
 
 </div>`;
 }
@@ -246,7 +255,10 @@ async function construirHTMLPost(jogo, idJogo, recursos) {
   const peso = jogo.peso || 'Varia com o dispositivo';
   const screenshots = jogo.screenshots || [];
 
-  const blocoSEO = gerarConteudoSEOBot(nomeLimpo, peso, recursos);
+  const labelsTemp = definirMarcadoresInteligentes(nomeJogo, jogo, recursos);
+  const ehModMenu = labelsTemp.includes('MOD MENU');
+
+  const blocoSEO = gerarConteudoSEOBot(nomeLimpo, peso, recursos, ehModMenu);
 
   return `<!--more-->
 <!-- ======================================================== -->
@@ -306,7 +318,7 @@ async function executarPostagem() {
     const jogos = res.data;
 
     if (!jogos) {
-      console.log('⚠️ Nenhum jogo encontrado no Firebase.');
+      console.log('⚠️️ Nenhum jogo encontrado no Firebase.');
       return;
     }
 
@@ -333,7 +345,7 @@ async function executarPostagem() {
       const descricaoPesquisa = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos);
 
-      // Objeto de dados enviado para o Blogger (Garante que a Descrição de Pesquisa vá preenchida corretamente)
+      // Objeto enviado para a API do Blogger com o campo correto 'searchDescription'
       const postBody = {
         title: tituloPost,
         content: htmlPost,
@@ -358,7 +370,7 @@ async function executarPostagem() {
                                (errUpdate.message && errUpdate.message.includes('Requested entity was not found'));
 
             if (isNotFound) {
-              console.log(`⚠️ Post ID ${jogo.blogger_post_id} foi APAGADO do Blogger! Criando um NOVO post do zero...`);
+              console.log(`⚠️️ Post ID ${jogo.blogger_post_id} foi APAGADO do Blogger! Criando um NOVO post do zero...`);
               response = await blogger.posts.insert({
                 blogId: BLOG_ID,
                 requestBody: postBody
