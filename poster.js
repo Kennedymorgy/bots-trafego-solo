@@ -116,6 +116,7 @@ function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
     vFormatada = 'v' + vFormatada;
   }
+  vFormatada = 'V' + vFormatada.substring(1);
 
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
@@ -139,6 +140,7 @@ function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
   if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
     vFormatada = 'v' + vFormatada;
   }
+  vFormatada = 'V' + vFormatada.substring(1);
 
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
@@ -152,7 +154,6 @@ function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
   return desc;
 }
 
-// Bot de SEO Hiper-Inteligente: Adapta 100% o contexto de acordo com o jogo e cada recurso
 function interpretarRecursoParaSEO(recurso, nomeJogo) {
   const recLower = recurso.toLowerCase();
   const jogoLower = nomeJogo.toLowerCase();
@@ -316,7 +317,7 @@ async function executarPostagem() {
     const jogos = res.data;
 
     if (!jogos) {
-      console.log('⚠ Nenhum jogo encontrado no Firebase.');
+      console.log('⚠️ Nenhum jogo encontrado no Firebase.');
       return;
     }
 
@@ -338,56 +339,62 @@ async function executarPostagem() {
       const recursos = obterRecursosDoJogo(jogo);
       const labels = definirMarcadoresInteligentes(nomeJogo, jogo, recursos);
       const ehModMenu = labels.includes('MOD MENU');
-      const tituloPost = gerarTituloInteligente(nomeJogo, jogo.versao, recursos, ehModMenu);
+      
+      const tituloCompleto = gerarTituloInteligente(nomeJogo, jogo.versao, recursos, ehModMenu);
+      
+      // Slug ultra limpo baseado estritamente no ID do Firebase + tag mod (Ex: 8-ball-pool-mod-apk)
+      const slugFirebaseLimpo = idJogo.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const tagSlug = ehModMenu ? 'mod-menu' : 'mod-apk';
+      const tituloParaURL = `${slugFirebaseLimpo}-${tagSlug}`;
 
       const descricaoPesquisa = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos);
-
-      // CORREÇÃO DEFINITIVA: A API do Blogger exige a Descrição de Pesquisa dentro de 'customMetaData'
-      const postBody = {
-        title: tituloPost,
-        content: htmlPost,
-        labels: labels,
-        customMetaData: descricaoPesquisa
-      };
 
       try {
         let response;
 
         if (jogo.blogger_post_id) {
-          try {
-            console.log(`🔄 Atualizando post existente no Blogger (ID: ${jogo.blogger_post_id})...`);
-            response = await blogger.posts.update({
-              blogId: BLOG_ID,
-              postId: jogo.blogger_post_id,
-              requestBody: postBody
-            });
-          } catch (errUpdate) {
-            const isNotFound = errUpdate.status === 404 ||
-                               (errUpdate.response && errUpdate.response.status === 404) ||
-                               (errUpdate.message && errUpdate.message.includes('Requested entity was not found'));
-
-            if (isNotFound) {
-              console.log(`⚠ Post ID ${jogo.blogger_post_id} foi APAGADO do Blogger! Criando um NOVO post do zero...`);
-              response = await blogger.posts.insert({
-                blogId: BLOG_ID,
-                requestBody: postBody
-              });
-            } else {
-              throw errUpdate;
+          console.log(`🔄 Atualizando post existente no Blogger (ID: ${jogo.blogger_post_id})...`);
+          response = await blogger.posts.update({
+            blogId: BLOG_ID,
+            postId: jogo.blogger_post_id,
+            requestBody: {
+              title: tituloCompleto,
+              content: htmlPost,
+              labels: labels,
+              customMetaData: descricaoPesquisa
             }
-          }
+          });
         } else {
-          console.log(`🆕 Criando novo post no Blogger...`);
+          console.log(`🆕 Criando novo post no Blogger com URL curta e profissional...`);
+          // 1. Cria com o título baseado no ID do Firebase + tag para gerar a URL limpa e curta
           response = await blogger.posts.insert({
             blogId: BLOG_ID,
-            requestBody: postBody
+            requestBody: {
+              title: tituloParaURL,
+              content: htmlPost,
+              labels: labels,
+              customMetaData: descricaoPesquisa
+            }
+          });
+
+          // 2. Atualiza imediatamente para o título completo contendo a versão exata para o script JS do tema atualizar na tela
+          const postIdCriado = response.data.id;
+          response = await blogger.posts.update({
+            blogId: BLOG_ID,
+            postId: postIdCriado,
+            requestBody: {
+              title: tituloCompleto,
+              content: htmlPost,
+              labels: labels,
+              customMetaData: descricaoPesquisa
+            }
           });
         }
 
         const urlPublicada = response.data.url;
         console.log(`🚀 Post Publicado/Atualizado com Sucesso!`);
-        console.log(`📌 Título: ${tituloPost}`);
+        console.log(`📌 Título: ${tituloCompleto}`);
         console.log(`🏷️ Marcadores: ${labels.join(', ')}`);
         console.log(`🔍 Descrição de Pesquisa (SEO): ${descricaoPesquisa}`);
         console.log(`🔗 URL: ${urlPublicada}`);
