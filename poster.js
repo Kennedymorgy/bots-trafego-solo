@@ -111,7 +111,7 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   return Array.from(marcadores);
 }
 
-// TÍTULO SEM VERSÃO ESTÁTICA (O JS DO TEMA VAI INJETAR A VERSÃO DINAMICAMENTE)
+// TÍTULO SEM VERSÃO ESTÁTICA (TÍTULO LIMPO PARA MANTER A URL PERMANENTE)
 function gerarTituloInteligente(nomeJogo, recursos, ehModMenu) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
@@ -130,12 +130,10 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
+// DESCRIÇÃO DE PESQUISA (SEO PARA O GOOGLE - COM A VERSÃO ATUALIZADA)
 function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
-  let vFormatada = (versao || '').toString().trim();
-  if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
-    vFormatada = 'v' + vFormatada;
-  }
-  vFormatada = 'V' + vFormatada.substring(1);
+  let vBruta = (versao || '1.0').toString().trim();
+  let vFormatada = vBruta.toLowerCase().startsWith('v') ? 'V' + vBruta.substring(1) : 'V' + vBruta;
 
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
@@ -143,6 +141,7 @@ function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
 
   let desc = `Baixar ${nomeLimpo} ${tagMod} ${vFormatada} com ${funcoesStr} para Android. Versão atualizada, segura e com download direto!`;
   desc = desc.replace(/\s+/g, ' ').trim();
+
   if (desc.length > 150) {
     desc = desc.substring(0, 147) + '...';
   }
@@ -359,7 +358,7 @@ async function executarPostagem() {
               title: tituloPostLimpo,
               content: htmlPost,
               labels: labels,
-              customMetaData: descricaoPesquisa
+              searchDescription: descricaoPesquisa
             }
           });
         } else {
@@ -371,7 +370,7 @@ async function executarPostagem() {
               title: tituloParaURL,
               content: htmlPost,
               labels: labels,
-              customMetaData: descricaoPesquisa
+              searchDescription: descricaoPesquisa
             }
           });
 
@@ -384,7 +383,7 @@ async function executarPostagem() {
               title: tituloPostLimpo,
               content: htmlPost,
               labels: labels,
-              customMetaData: descricaoPesquisa
+              searchDescription: descricaoPesquisa
             }
           });
         }
