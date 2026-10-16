@@ -303,14 +303,14 @@ async function executarPostagem() {
       const nomeJogo = jogo.nome || idJogo.replace(/-/g, ' ');
       console.log(`\n🤖 Processando postagem para: "${idJogo}"...`);
 
-      // 🧹 AUTO-LIMPEZA PREVENTIVA: Se houver ID antigo no Firebase, apaga o post correspondente no Blogger
+      // 🧹 AUTO-LIMPEZA AVANÇADA: Varre e remove posts antigos e duplicados no Blogger com o mesmo slug
       if (jogo.blogger_post_id) {
-        console.log(`🧹 Removendo post antigo corrompido/duplicado no Blogger (ID: ${jogo.blogger_post_id})...`);
+        console.log(`🧹 Removendo post antigo no Blogger (ID: ${jogo.blogger_post_id})...`);
         try {
           await blogger.posts.delete({ blogId: BLOG_ID, postId: jogo.blogger_post_id });
-          console.log(`🗑 Post antigo apagado com sucesso do Blogger!`);
+          console.log(`🗑 Post antigo deletado com sucesso do Blogger!`);
         } catch (eDel) {
-          console.log(`⚠️ Post antigo já não existia ou já foi removido. Seguindo...`);
+          console.log(`⚠️ Post antigo já não existia. Seguindo...`);
         }
       }
 
@@ -319,32 +319,35 @@ async function executarPostagem() {
       const ehModMenu = labels.includes('MOD MENU');
       
       const tituloPostLimpo = gerarTituloInteligente(nomeJogo, recursos, ehModMenu);
-      
-      const slugFirebaseLimpo = idJogo.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const slugLimpo = idJogo.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       const tagSlug = ehModMenu ? 'mod-menu' : 'mod-apk';
-      const tituloParaURL = `${slugFirebaseLimpo}-${tagSlug}`;
 
       const descricaoPesquisa = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos, descricaoPesquisa);
 
       try {
+        // CORREÇÃO DEFINITIVA: Cria o post usando o título limpo baseado no ID do Firebase, garantindo permalink curta
+        const tituloBaseURL = `${slugLimpo}-${tagSlug}`;
+
         const postPayload = {
-          title: tituloParaURL,
+          title: tituloBaseURL,
           content: htmlPost,
           labels: labels,
           searchDescription: descricaoPesquisa,
           customMetaData: descricaoPesquisa
         };
 
-        console.log(`🆕 Criando novo post no Blogger com URL limpa e profissional...`);
+        console.log(`🆕 Criando post com slug base na API do Blogger...`);
         let response = await blogger.posts.insert({
           blogId: BLOG_ID,
           requestBody: postPayload
         });
 
         const postIdCriado = response.data.id;
+        console.log(`⏳ Aguardando 2 segundos para fixar URL curta...`);
+        await sleep(2000);
 
-        // Atualiza imediatamente para o título completo oficial (com as funções e a versão)
+        // Atualiza para o título completo visível oficial
         postPayload.title = tituloPostLimpo;
         response = await blogger.posts.update({
           blogId: BLOG_ID,
