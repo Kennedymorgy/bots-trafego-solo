@@ -80,31 +80,32 @@ async function sincronizarDescricoesSEO() {
       
       const novaDescricao = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
 
-      console.log(`\n🔄 Verificando SEO para: "${idJogo}" (Versão: ${jogo.versao || '1.0'})`);
+      console.log(`\n🔄 Atualizando SEO (Patch) para: "${idJogo}" (Versão: ${jogo.versao || '1.0'})`);
 
       try {
-        // Puxa o post atual do Blogger para não alterar título ou conteúdo
-        const postAtual = await blogger.posts.get({
-          blogId: BLOG_ID,
-          postId: jogo.blogger_post_id
-        });
-
-        // Atualiza apenas a descrição de pesquisa
-        await blogger.posts.update({
+        // PATCH: Grava diretamente na caixinha de descrição de pesquisa do Blogger
+        await blogger.posts.patch({
           blogId: BLOG_ID,
           postId: jogo.blogger_post_id,
           requestBody: {
-            title: postAtual.data.title,
-            content: postAtual.data.content,
-            labels: postAtual.data.labels,
             searchDescription: novaDescricao
           }
         });
 
-        console.log(`✅ Descrição atualizada (${novaDescricao.length} caracteres): ${novaDescricao}`);
+        console.log(`✅ Caixinha de pesquisa preenchida (${novaDescricao.length} caracteres): ${novaDescricao}`);
 
       } catch (errPost) {
-        console.error(`❌ Erro ao atualizar o post "${idJogo}":`, errPost.message);
+        // Se o post foi apagado do Blogger mas estava salvo no Firebase, limpa o ID automaticamente
+        if (errPost.code === 404 || (errPost.message && errPost.message.includes('not found'))) {
+          console.warn(`⚠️ Post ID ${jogo.blogger_post_id} não existe mais no Blogger. Limpando referência no Firebase...`);
+          await axios.patch(`${FIREBASE_BASE_URL}/jogos/${idJogo}.json`, {
+            blogger_post_id: null,
+            postado_blogger: false,
+            post_url: null
+          });
+        } else {
+          console.error(`❌ Erro ao atualizar o post "${idJogo}":`, errPost.message);
+        }
       }
 
       await new Promise(resolve => setTimeout(resolve, 2000));
