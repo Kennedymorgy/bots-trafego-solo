@@ -324,39 +324,22 @@ async function executarPostagem() {
       
       const versaoStr = jogo.versao || '1.0';
       const tituloPostOficial = gerarTituloInteligente(nomeJogo, versaoStr, recursos, ehModMenu);
-      
-      // Slug limpo, fixo e permanente baseado estritamente no ID do Firebase + tag mod
-      const slugLimpo = idJogo.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      const tagSlug = ehModMenu ? 'mod-menu' : 'mod-apk';
-      const tituloParaURL = `${slugLimpo}-${tagSlug}`;
-
       const descricaoPesquisa = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos, descricaoPesquisa);
 
       try {
+        // Envia o payload limpo preenchendo tanto a searchDescription quanto o customMetaData
         const postPayload = {
-          title: tituloParaURL,
+          title: tituloPostOficial,
           content: htmlPost,
           labels: labels,
           searchDescription: descricaoPesquisa,
           customMetaData: descricaoPesquisa
         };
 
-        console.log(`🆕 Criando post com URL limpa e fixa na API do Blogger...`);
+        console.log(`🆕 Publicando post oficial na API do Blogger...`);
         let response = await blogger.posts.insert({
           blogId: BLOG_ID,
-          requestBody: postPayload
-        });
-
-        const postIdCriado = response.data.id;
-        console.log(`⏳ Aguardando 2 segundos para fixar a URL permanente...`);
-        await sleep(2000);
-
-        // Atualiza para o título oficial completo com a versão visível
-        postPayload.title = tituloPostOficial;
-        response = await blogger.posts.update({
-          blogId: BLOG_ID,
-          postId: postIdCriado,
           requestBody: postPayload
         });
 
