@@ -333,21 +333,6 @@ async function executarPostagem() {
       const nomeJogo = jogo.nome || idJogo.replace(/-/g, ' ');
       console.log(`\n🤖 Processando postagem para: "${idJogo}"...`);
 
-      // 🧹 SISTEMA AUTOMÁTICO DE LIMPEZA DE URLs COM NÚMEROS DOIDOS
-      if (jogo.post_url && /_[0-9]{5,}\.html/i.test(jogo.post_url)) {
-        console.log(`🧹 URL com números doidos detectada (${jogo.post_url}). Limpando post antigo no Blogger...`);
-        if (jogo.blogger_post_id) {
-          try {
-            await blogger.posts.delete({ blogId: BLOG_ID, postId: jogo.blogger_post_id });
-            console.log(`🗑 Post antigo removido do Blogger com sucesso!`);
-          } catch (eClean) {
-            console.log(`⚠️ Não foi possível deletar o post antigo (pode já ter sido apagado). Seguindo...`);
-          }
-        }
-        jogo.blogger_post_id = null;
-        jogo.post_url = null;
-      }
-
       const recursos = obterRecursosDoJogo(jogo);
       const labels = definirMarcadoresInteligentes(nomeJogo, jogo, recursos);
       const ehModMenu = labels.includes('MOD MENU');
@@ -364,46 +349,40 @@ async function executarPostagem() {
       try {
         let response;
 
+        // Requisição montada com suporte total à Descrição de Pesquisa
+        const postPayload = {
+          title: tituloParaURL,
+          content: htmlPost,
+          labels: labels,
+          searchDescription: descricaoPesquisa,
+          customMetaData: descricaoPesquisa
+        };
+
         if (jogo.blogger_post_id) {
           console.log(`🔄 Atualizando post existente no Blogger (ID: ${jogo.blogger_post_id})...`);
+          postPayload.title = tituloPostLimpo;
           response = await blogger.posts.update({
             blogId: BLOG_ID,
             postId: jogo.blogger_post_id,
-            requestBody: {
-              title: tituloPostLimpo,
-              content: htmlPost,
-              labels: labels,
-              searchDescription: descricaoPesquisa
-            }
+            requestBody: postPayload
           });
         } else {
           console.log(`🆕 Criando novo post no Blogger com URL curta e profissional...`);
           
-          // Passo 1: Cria com o slug limpo para fixar a URL perfeita
+          // Step 1: Cria com o título amigável de URL
           response = await blogger.posts.insert({
             blogId: BLOG_ID,
-            requestBody: {
-              title: tituloParaURL,
-              content: htmlPost,
-              labels: labels,
-              searchDescription: descricaoPesquisa
-            }
+            requestBody: postPayload
           });
 
           const postIdCriado = response.data.id;
-          console.log(`⏳ Aguardando 3 segundos para travar a URL curta...`);
-          await sleep(3000);
 
-          // Passo 2: Atualiza para o título oficial completo (com as funções) e garante a descrição de pesquisa
+          // Step 2: Atualiza imediatamente para o título com as funções do MOD
+          postPayload.title = tituloPostLimpo;
           response = await blogger.posts.update({
             blogId: BLOG_ID,
             postId: postIdCriado,
-            requestBody: {
-              title: tituloPostLimpo,
-              content: htmlPost,
-              labels: labels,
-              searchDescription: descricaoPesquisa
-            }
+            requestBody: postPayload
           });
         }
 
