@@ -22,10 +22,13 @@ function extrairPackageId(itemBusca) {
   return null;
 }
 
-// Verifica se o jogo já tem todas as informações essenciais preenchidas
+// Verifica se o jogo já tem a FOTO OFICIAL da Play Store e todas as outras infos
 function estaCompleto(jogo) {
+  // Verifica se a foto atual já é da Play Store (Google)
+  const temFotoPlaystore = jogo.foto && (jogo.foto.includes('googleusercontent.com') || jogo.foto.includes('ggpht.com'));
+  
   return (
-    jogo.foto &&
+    temFotoPlaystore &&
     jogo.screenshots &&
     jogo.screenshots.length > 0 &&
     jogo.categoria &&
@@ -53,9 +56,9 @@ async function extrairEAtualizarFirebase() {
     for (const idJogo of idsJogos) {
       const jogoLocal = jogosFirebase[idJogo];
 
-      // REGRA: Se o jogo já tiver tudo 100% preenchido, pula para não gastar recursos
+      // Se já estiver completo com a foto oficial, pula
       if (estaCompleto(jogoLocal)) {
-        console.log(`⏭️ Jogo "${idJogo}" já tem todas as informações completas no Firebase. Pulando...`);
+        console.log(`⏭️ Jogo "${idJogo}" já está completo com a foto oficial da Play Store. Pulando...`);
         continue;
       }
 
@@ -97,14 +100,14 @@ async function extrairEAtualizarFirebase() {
 
         const screenshotsList = (detalhes.screenshots || []).slice(0, 4);
 
-        // Tratamento para o Peso: se a Play Store não der em MB, define um padrão útil ou limpo
+        // Tratamento para o Peso
         let pesoFinal = detalhes.size;
         if (!pesoFinal || pesoFinal === 'Varia com o dispositivo') {
           pesoFinal = jogoLocal.peso && jogoLocal.peso !== 'Varia com o dispositivo' ? jogoLocal.peso : 'Varia (Android)';
         }
 
         const dadosAtualizados = {
-          foto: jogoLocal.foto || detalhes.icon || '',
+          foto: detalhes.icon || jogoLocal.foto || '', // Prioriza a foto da Play Store para sobrescrever a do site
           screenshots: (jogoLocal.screenshots && jogoLocal.screenshots.length > 0) ? jogoLocal.screenshots : screenshotsList,
           peso: pesoFinal,
           categoria: jogoLocal.categoria || detalhes.genre || 'Jogos',
@@ -114,9 +117,10 @@ async function extrairEAtualizarFirebase() {
         };
 
         console.log(`✅ Atualizando: ${detalhes.title}`);
-        console.log(`   📦 Peso final: ${dadosAtualizados.peso}`);
+        console.log(`    📦 Peso final: ${dadosAtualizados.peso}`);
+        console.log(`    🖼️ Foto do site substituída pela foto oficial da Play Store!`);
 
-        // Atualização PATCH no Firebase
+        // Atualização PATCH no Firebase (Sobrescreve os dados antigos)
         await axios.patch(getFirebaseUrl(`/jogos/${idJogo}`), dadosAtualizados);
         console.log(`🚀 Sucesso! Nó /jogos/${idJogo} atualizado no Firebase.\n`);
 
