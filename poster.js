@@ -111,7 +111,7 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   return Array.from(marcadores);
 }
 
-// TÍTULO OFICIAL COMPLETO (EXIBIDO NO BLOG)
+// TÍTULO COMPLETO (EXIBIDO NO TOPO DO POST)
 function gerarTituloInteligente(nomeJogo, recursos, ehModMenu) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
@@ -119,21 +119,6 @@ function gerarTituloInteligente(nomeJogo, recursos, ehModMenu) {
 
   const tituloCru = `${nomeLimpo} ${tagMod} (${funcoesTitulo})`;
   return tituloCru.replace(/\s+/g, ' ').trim();
-}
-
-// TÍTULO LIMPO USADO NA CRIAÇÃO PARA GERAR URL PERFEITA SEM NÚMEROS
-function gerarTituloParaURLCurta(idJogo, versao, ehModMenu) {
-  const slugLimpo = idJogo.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-  const tagMod = ehModMenu ? 'mod-menu' : 'mod-apk';
-  
-  // Se houver versão, adiciona limpo (ex: nfs-most-wanted-mod-apk-v1-3)
-  // Isso impede que o Blogger encontre colisões com slugs queimados na lixeira
-  let vClean = '';
-  if (versao) {
-    vClean = '-' + versao.toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-  }
-
-  return `${slugLimpo}-${tagMod}${vClean}`;
 }
 
 function gerarModTagsHTML(recursos) {
@@ -347,16 +332,12 @@ async function executarPostagem() {
       const nomeJogo = jogo.nome || idJogo.replace(/-/g, ' ');
       console.log(`\n🤖 Processando postagem para: "${idJogo}"...`);
 
-      // 🧹 DELETA POSTS ANTIGOS QUE FICARAM COM URLs NUMÉRICAS BUGADAS
       if (jogo.post_url && /_[0-9]{5,}\.html/i.test(jogo.post_url)) {
-        console.log(`🧹 URL antiga bugada detectada (${jogo.post_url}). Removendo no Blogger...`);
+        console.log(`🧹 URL antiga com números detectada. Removendo...`);
         if (jogo.blogger_post_id) {
           try {
             await blogger.posts.delete({ blogId: BLOG_ID, postId: jogo.blogger_post_id });
-            console.log(`🗑 Post antigo apagado com sucesso!`);
-          } catch (eClean) {
-            console.log(`⚠️ Post antigo já não existia no Blogger. Prosseguindo...`);
-          }
+          } catch (eClean) {}
         }
         jogo.blogger_post_id = null;
         jogo.post_url = null;
@@ -366,7 +347,12 @@ async function executarPostagem() {
       const labels = definirMarcadoresInteligentes(nomeJogo, jogo, recursos);
       const ehModMenu = labels.includes('MOD MENU');
       
-      const tituloOfficialCompleto = gerarTituloInteligente(nomeJogo, recursos, ehModMenu);
+      const tituloCompleto = gerarTituloInteligente(nomeJogo, recursos, ehModMenu);
+      
+      const slugFirebaseLimpo = idJogo.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const tagSlug = ehModMenu ? 'mod-menu' : 'mod-apk';
+      const tituloParaURLCurta = `${slugFirebaseLimpo}-${tagSlug}`;
+
       const descricaoPesquisa = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos, descricaoPesquisa);
 
@@ -379,23 +365,34 @@ async function executarPostagem() {
             blogId: BLOG_ID,
             postId: jogo.blogger_post_id,
             requestBody: {
-              title: tituloOfficialCompleto,
+              title: tituloCompleto,
               content: htmlPost,
               labels: labels,
               searchDescription: descricaoPesquisa
             }
           });
         } else {
-          console.log(`🆕 Criando NOVO POST DIRETO COM TÍTULO E SLUG LIMPOS...`);
+          console.log(`🆕 Criando post com título curto para travar a URL curta e limpa...`);
           
-          // MÉTODO DEFINITIVO:
-          // Cria direto o post com o título oficial sem fazer double-update.
-          // O Blogger gera a URL baseada no título da requisição inicial.
+          // Passo 1: Cria com o título curto/slug para a URL nascer perfeita
           response = await blogger.posts.insert({
             blogId: BLOG_ID,
-            isDraft: false,
             requestBody: {
-              title: tituloOfficialCompleto,
+              title: tituloParaURLCurta,
+              content: htmlPost,
+              labels: labels,
+              searchDescription: descricaoPesquisa
+            }
+          });
+
+          // Passo 2: Atualiza instantaneamente para o título completo (a URL fica congelada curta)
+          const postIdCriado = response.data.id;
+          console.log(`🔄 Atualizando para o título oficial completo...`);
+          response = await blogger.posts.update({
+            blogId: BLOG_ID,
+            postId: postIdCriado,
+            requestBody: {
+              title: tituloCompleto,
               content: htmlPost,
               labels: labels,
               searchDescription: descricaoPesquisa
@@ -405,10 +402,8 @@ async function executarPostagem() {
 
         const urlPublicada = response.data.url;
         console.log(`🚀 Post Publicado com Sucesso!`);
-        console.log(`📌 Título: ${tituloOfficialCompleto}`);
-        console.log(`🏷️ Marcadores: ${labels.join(', ')}`);
-        console.log(`🔍 SEO Descrição: ${descricaoPesquisa}`);
-        console.log(`🔗 URL GERADA: ${urlPublicada}`);
+        console.log(`📌 Título Exibido: ${tituloCompleto}`);
+        console.log(`🔗 URL Hiper-Curta: ${urlPublicada}`);
 
         await notificarGoogleIndexing(urlPublicada);
 
@@ -418,11 +413,11 @@ async function executarPostagem() {
           post_url: urlPublicada
         });
 
-        console.log(`✅ Registrado e sincronizado no Firebase!`);
+        console.log(`✅ Sincronizado no Firebase.`);
 
       } catch (errBlogger) {
         if (errBlogger.response && errBlogger.response.status === 429) {
-          console.error(`⚠ Cota da API do Blogger atingida (429). Interrompendo temporariamente.`);
+          console.error(`⚠ Cota da API do Blogger atingida (429). Interrompendo.`);
           break;
         } else {
           console.error(`❌ Erro ao postar "${idJogo}":`, errBlogger.message);
