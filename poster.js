@@ -318,6 +318,16 @@ async function executarPostagem() {
       return;
     }
 
+    // Busca posts existentes no Blogger para evitar conflitos de slug e números na URL
+    console.log('🔍 Verificando posts existentes no Blogger...');
+    let postsBloggerExistentes = [];
+    try {
+      const listaPosts = await blogger.posts.list({ blogId: BLOG_ID, maxResults: 100, fetchBodies: false });
+      postsBloggerExistentes = listaPosts.data.items || [];
+    } catch (eList) {
+      console.log('⚠️ Aviso ao listar posts do Blogger, prosseguindo normalmente...');
+    }
+
     for (const idJogo in jogos) {
       let jogo = jogos[idJogo];
 
@@ -325,7 +335,7 @@ async function executarPostagem() {
         continue;
       }
 
-      if (jogo.postado_blogger) {
+      if (jogo.postado_blogger && jogo.blogger_post_id) {
         console.log(`⏭ Jogo "${idJogo}" já foi postado. Pulando...`);
         continue;
       }
@@ -333,16 +343,42 @@ async function executarPostagem() {
       const nomeJogo = jogo.nome || idJogo.replace(/-/g, ' ');
       console.log(`\n🤖 Processando postagem para: "${idJogo}"...`);
 
-      // 🧹 SISTEMA AUTOMÁTICO DE LIMPEZA DE URLs DEFEITUOSAS (SUFIXOS NUMÉRICOS)
+      const slugFirebaseLimpo = idJogo.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const tagSlug = definirMarcadoresInteligentes(nomeJogo, jogo, obterRecursosDoJogo(jogo)).includes('MOD MENU') ? 'mod-menu' : 'mod-apk';
+      const tituloParaURL = `${slugFirebaseLimpo}-${tagSlug}`;
+
+      // 🧹 SISTEMA INTELIGENTE DE DETECÇÃO E LIMPEZA DE URLs COM NÚMEROS NO BLOGGER
+      const postEncontrado = postsBloggerExistentes.find(p => 
+        p.title === tituloParaURL || 
+        (p.url && p.url.includes(slugFirebaseLimpo))
+      );
+
+      if (postEncontrado) {
+        // Se a URL do Blogger contém números feios (ex: _093246217.html)
+        if (/[0-9]{5,}\.html/i.test(postEncontrado.url)) {
+          console.log(`🧹 URL antiga com números detectada no Blogger (${postEncontrado.url}). Deletando para recriar limpa...`);
+          try {
+            await blogger.posts.delete({ blogId: BLOG_ID, postId: postEncontrado.id });
+            console.log(`🗑 Post antigo removido com sucesso!`);
+          } catch (eDel) {
+            console.log(`⚠️ Não foi possível deletar o post antigo. Seguindo...`);
+          }
+          jogo.blogger_post_id = null;
+          jogo.post_url = null;
+        } else {
+          // Já existe e está limpo, aproveitamos o ID!
+          jogo.blogger_post_id = postEncontrado.id;
+          jogo.post_url = postEncontrado.url;
+        }
+      }
+
+      // Limpeza tradicional via Firebase caso estivesse salva lá
       if (jogo.post_url && /_[0-9]{5,}\.html/i.test(jogo.post_url)) {
-        console.log(`🧹 URL com números doidos detectada (${jogo.post_url}). Limpando post antigo no Blogger...`);
+        console.log(`🧹 URL com números doidos detectada no Firebase (${jogo.post_url}). Limpando...`);
         if (jogo.blogger_post_id) {
           try {
             await blogger.posts.delete({ blogId: BLOG_ID, postId: jogo.blogger_post_id });
-            console.log(`🗑 Post antigo removido do Blogger com sucesso!`);
-          } catch (eClean) {
-            console.log(`⚠️ Não foi possível deletar o post antigo (pode já ter sido apagado). Seguindo...`);
-          }
+          } catch (eClean) {}
         }
         jogo.blogger_post_id = null;
         jogo.post_url = null;
@@ -353,11 +389,6 @@ async function executarPostagem() {
       const ehModMenu = labels.includes('MOD MENU');
       
       const tituloPostLimpo = gerarTituloInteligente(nomeJogo, recursos, ehModMenu);
-      
-      const slugFirebaseLimpo = idJogo.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      const tagSlug = ehModMenu ? 'mod-menu' : 'mod-apk';
-      const tituloParaURL = `${slugFirebaseLimpo}-${tagSlug}`;
-
       const descricaoPesquisa = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos, descricaoPesquisa);
 
