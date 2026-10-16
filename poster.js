@@ -111,7 +111,7 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   return Array.from(marcadores);
 }
 
-// TÍTULO LIMPO PARA MANTER A URL PERMANENTE CURTA
+// TÍTULO OFICIAL COMPLETO (EXIBIDO NO BLOG)
 function gerarTituloInteligente(nomeJogo, recursos, ehModMenu) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
@@ -119,6 +119,21 @@ function gerarTituloInteligente(nomeJogo, recursos, ehModMenu) {
 
   const tituloCru = `${nomeLimpo} ${tagMod} (${funcoesTitulo})`;
   return tituloCru.replace(/\s+/g, ' ').trim();
+}
+
+// TÍTULO LIMPO USADO NA CRIAÇÃO PARA GERAR URL PERFEITA SEM NÚMEROS
+function gerarTituloParaURLCurta(idJogo, versao, ehModMenu) {
+  const slugLimpo = idJogo.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const tagMod = ehModMenu ? 'mod-menu' : 'mod-apk';
+  
+  // Se houver versão, adiciona limpo (ex: nfs-most-wanted-mod-apk-v1-3)
+  // Isso impede que o Blogger encontre colisões com slugs queimados na lixeira
+  let vClean = '';
+  if (versao) {
+    vClean = '-' + versao.toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  }
+
+  return `${slugLimpo}-${tagMod}${vClean}`;
 }
 
 function gerarModTagsHTML(recursos) {
@@ -130,7 +145,6 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
-// DESCRIÇÃO DE PESQUISA (SEO DEMAIS COM VERSÃO ATUALIZADA)
 function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
   let vBruta = (versao || '1.0').toString().trim();
   let vFormatada = vBruta.toLowerCase().startsWith('v') ? 'V' + vBruta.substring(1) : 'V' + vBruta;
@@ -318,16 +332,6 @@ async function executarPostagem() {
       return;
     }
 
-    // Busca posts existentes no Blogger para evitar conflitos de slug e números na URL
-    console.log('🔍 Verificando posts existentes no Blogger...');
-    let postsBloggerExistentes = [];
-    try {
-      const listaPosts = await blogger.posts.list({ blogId: BLOG_ID, maxResults: 100, fetchBodies: false });
-      postsBloggerExistentes = listaPosts.data.items || [];
-    } catch (eList) {
-      console.log('⚠️ Aviso ao listar posts do Blogger, prosseguindo normalmente...');
-    }
-
     for (const idJogo in jogos) {
       let jogo = jogos[idJogo];
 
@@ -343,42 +347,16 @@ async function executarPostagem() {
       const nomeJogo = jogo.nome || idJogo.replace(/-/g, ' ');
       console.log(`\n🤖 Processando postagem para: "${idJogo}"...`);
 
-      const slugFirebaseLimpo = idJogo.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      const tagSlug = definirMarcadoresInteligentes(nomeJogo, jogo, obterRecursosDoJogo(jogo)).includes('MOD MENU') ? 'mod-menu' : 'mod-apk';
-      const tituloParaURL = `${slugFirebaseLimpo}-${tagSlug}`;
-
-      // 🧹 SISTEMA INTELIGENTE DE DETECÇÃO E LIMPEZA DE URLs COM NÚMEROS NO BLOGGER
-      const postEncontrado = postsBloggerExistentes.find(p => 
-        p.title === tituloParaURL || 
-        (p.url && p.url.includes(slugFirebaseLimpo))
-      );
-
-      if (postEncontrado) {
-        // Se a URL do Blogger contém números feios (ex: _093246217.html)
-        if (/[0-9]{5,}\.html/i.test(postEncontrado.url)) {
-          console.log(`🧹 URL antiga com números detectada no Blogger (${postEncontrado.url}). Deletando para recriar limpa...`);
-          try {
-            await blogger.posts.delete({ blogId: BLOG_ID, postId: postEncontrado.id });
-            console.log(`🗑 Post antigo removido com sucesso!`);
-          } catch (eDel) {
-            console.log(`⚠️ Não foi possível deletar o post antigo. Seguindo...`);
-          }
-          jogo.blogger_post_id = null;
-          jogo.post_url = null;
-        } else {
-          // Já existe e está limpo, aproveitamos o ID!
-          jogo.blogger_post_id = postEncontrado.id;
-          jogo.post_url = postEncontrado.url;
-        }
-      }
-
-      // Limpeza tradicional via Firebase caso estivesse salva lá
+      // 🧹 DELETA POSTS ANTIGOS QUE FICARAM COM URLs NUMÉRICAS BUGADAS
       if (jogo.post_url && /_[0-9]{5,}\.html/i.test(jogo.post_url)) {
-        console.log(`🧹 URL com números doidos detectada no Firebase (${jogo.post_url}). Limpando...`);
+        console.log(`🧹 URL antiga bugada detectada (${jogo.post_url}). Removendo no Blogger...`);
         if (jogo.blogger_post_id) {
           try {
             await blogger.posts.delete({ blogId: BLOG_ID, postId: jogo.blogger_post_id });
-          } catch (eClean) {}
+            console.log(`🗑 Post antigo apagado com sucesso!`);
+          } catch (eClean) {
+            console.log(`⚠️ Post antigo já não existia no Blogger. Prosseguindo...`);
+          }
         }
         jogo.blogger_post_id = null;
         jogo.post_url = null;
@@ -388,7 +366,7 @@ async function executarPostagem() {
       const labels = definirMarcadoresInteligentes(nomeJogo, jogo, recursos);
       const ehModMenu = labels.includes('MOD MENU');
       
-      const tituloPostLimpo = gerarTituloInteligente(nomeJogo, recursos, ehModMenu);
+      const tituloOfficialCompleto = gerarTituloInteligente(nomeJogo, recursos, ehModMenu);
       const descricaoPesquisa = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos, descricaoPesquisa);
 
@@ -401,33 +379,23 @@ async function executarPostagem() {
             blogId: BLOG_ID,
             postId: jogo.blogger_post_id,
             requestBody: {
-              title: tituloPostLimpo,
+              title: tituloOfficialCompleto,
               content: htmlPost,
               labels: labels,
               searchDescription: descricaoPesquisa
             }
           });
         } else {
-          console.log(`🆕 Criando novo post no Blogger com URL curta e profissional...`);
+          console.log(`🆕 Criando NOVO POST DIRETO COM TÍTULO E SLUG LIMPOS...`);
           
-          // Step 1: Cria com slug curto e fixo
+          // MÉTODO DEFINITIVO:
+          // Cria direto o post com o título oficial sem fazer double-update.
+          // O Blogger gera a URL baseada no título da requisição inicial.
           response = await blogger.posts.insert({
             blogId: BLOG_ID,
+            isDraft: false,
             requestBody: {
-              title: tituloParaURL,
-              content: htmlPost,
-              labels: labels,
-              searchDescription: descricaoPesquisa
-            }
-          });
-
-          // Step 2: Atualiza para o título oficial completo
-          const postIdCriado = response.data.id;
-          response = await blogger.posts.update({
-            blogId: BLOG_ID,
-            postId: postIdCriado,
-            requestBody: {
-              title: tituloPostLimpo,
+              title: tituloOfficialCompleto,
               content: htmlPost,
               labels: labels,
               searchDescription: descricaoPesquisa
@@ -436,11 +404,11 @@ async function executarPostagem() {
         }
 
         const urlPublicada = response.data.url;
-        console.log(`🚀 Post Publicado/Atualizado com Sucesso!`);
-        console.log(`📌 Título: ${tituloPostLimpo}`);
+        console.log(`🚀 Post Publicado com Sucesso!`);
+        console.log(`📌 Título: ${tituloOfficialCompleto}`);
         console.log(`🏷️ Marcadores: ${labels.join(', ')}`);
-        console.log(`🔍 Descrição de Pesquisa (SEO): ${descricaoPesquisa}`);
-        console.log(`🔗 URL: ${urlPublicada}`);
+        console.log(`🔍 SEO Descrição: ${descricaoPesquisa}`);
+        console.log(`🔗 URL GERADA: ${urlPublicada}`);
 
         await notificarGoogleIndexing(urlPublicada);
 
@@ -450,7 +418,7 @@ async function executarPostagem() {
           post_url: urlPublicada
         });
 
-        console.log(`✅ Marcado como publicado e sincronizado no Firebase.`);
+        console.log(`✅ Registrado e sincronizado no Firebase!`);
 
       } catch (errBlogger) {
         if (errBlogger.response && errBlogger.response.status === 429) {
