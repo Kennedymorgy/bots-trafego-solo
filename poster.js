@@ -111,18 +111,13 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   return Array.from(marcadores);
 }
 
-function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
-  let vFormatada = (versao || '').toString().trim();
-  if (vFormatada && !vFormatada.toLowerCase().startsWith('v')) {
-    vFormatada = 'v' + vFormatada;
-  }
-  vFormatada = 'V' + vFormatada.substring(1);
-
+// TÍTULO SEM VERSÃO ESTÁTICA (O JS DO TEMA VAI INJETAR A VERSÃO DINAMICAMENTE)
+function gerarTituloInteligente(nomeJogo, recursos, ehModMenu) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
   const funcoesTitulo = recursos.slice(0, 10).join(' / ');
 
-  const tituloCru = `${nomeLimpo} ${tagMod} ${vFormatada} (${funcoesTitulo})`;
+  const tituloCru = `${nomeLimpo} ${tagMod} (${funcoesTitulo})`;
   return tituloCru.replace(/\s+/g, ' ').trim();
 }
 
@@ -253,6 +248,7 @@ async function construirHTMLPost(jogo, idJogo, recursos) {
   const downloadLink = `${WORKER_BASE}?id=${idJogo}`;
   const peso = jogo.peso || 'Varia com o dispositivo';
   const screenshots = jogo.screenshots || [];
+  const versaoReal = jogo.versao || '1.0';
 
   const labelsTemp = definirMarcadoresInteligentes(nomeJogo, jogo, recursos);
   const ehModMenu = labelsTemp.includes('MOD MENU');
@@ -265,6 +261,7 @@ async function construirHTMLPost(jogo, idJogo, recursos) {
 <!-- ======================================================== -->
 
 <span id="cyanPostName" style="display:none;">${nomeLimpo}</span>
+<span id="rawPostVersion" class="cyanPostVersionDisplay" style="display:none;">${versaoReal}</span>
 
 <div class="post-cover-wrapper" style="display:none;">
   <img src="${capa}" alt="${nomeLimpo} Mod APK" />
@@ -340,9 +337,9 @@ async function executarPostagem() {
       const labels = definirMarcadoresInteligentes(nomeJogo, jogo, recursos);
       const ehModMenu = labels.includes('MOD MENU');
       
-      const tituloCompleto = gerarTituloInteligente(nomeJogo, jogo.versao, recursos, ehModMenu);
+      const tituloPostLimpo = gerarTituloInteligente(nomeJogo, recursos, ehModMenu);
       
-      // Slug ultra limpo baseado estritamente no ID do Firebase + tag mod (Ex: 8-ball-pool-mod-apk)
+      // Slug limpo baseado estritamente no ID do Firebase + tag mod para URL profissional curta
       const slugFirebaseLimpo = idJogo.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       const tagSlug = ehModMenu ? 'mod-menu' : 'mod-apk';
       const tituloParaURL = `${slugFirebaseLimpo}-${tagSlug}`;
@@ -359,7 +356,7 @@ async function executarPostagem() {
             blogId: BLOG_ID,
             postId: jogo.blogger_post_id,
             requestBody: {
-              title: tituloCompleto,
+              title: tituloPostLimpo,
               content: htmlPost,
               labels: labels,
               customMetaData: descricaoPesquisa
@@ -367,7 +364,7 @@ async function executarPostagem() {
           });
         } else {
           console.log(`🆕 Criando novo post no Blogger com URL curta e profissional...`);
-          // 1. Cria com o título baseado no ID do Firebase + tag para gerar a URL limpa e curta
+          // 1. Cria com o título baseado no ID do Firebase para fixar a URL limpa
           response = await blogger.posts.insert({
             blogId: BLOG_ID,
             requestBody: {
@@ -378,13 +375,13 @@ async function executarPostagem() {
             }
           });
 
-          // 2. Atualiza imediatamente para o título completo contendo a versão exata para o script JS do tema atualizar na tela
+          // 2. Atualiza imediatamente para o título limpo oficial (sem a versão estática)
           const postIdCriado = response.data.id;
           response = await blogger.posts.update({
             blogId: BLOG_ID,
             postId: postIdCriado,
             requestBody: {
-              title: tituloCompleto,
+              title: tituloPostLimpo,
               content: htmlPost,
               labels: labels,
               customMetaData: descricaoPesquisa
@@ -394,7 +391,7 @@ async function executarPostagem() {
 
         const urlPublicada = response.data.url;
         console.log(`🚀 Post Publicado/Atualizado com Sucesso!`);
-        console.log(`📌 Título: ${tituloCompleto}`);
+        console.log(`📌 Título: ${tituloPostLimpo}`);
         console.log(`🏷️ Marcadores: ${labels.join(', ')}`);
         console.log(`🔍 Descrição de Pesquisa (SEO): ${descricaoPesquisa}`);
         console.log(`🔗 URL: ${urlPublicada}`);
