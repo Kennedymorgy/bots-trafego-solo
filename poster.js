@@ -111,7 +111,7 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   return Array.from(marcadores);
 }
 
-// TÍTULO COMPLETO COM A VERSÃO (Exibido no Blogger e indexado pelo Google)
+// TÍTULO COMPLETO COM A VERSÃO VISÍVEL NO BLOGGER
 function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
@@ -325,11 +325,10 @@ async function executarPostagem() {
       const versaoStr = jogo.versao || '1.0';
       const tituloPostOficial = gerarTituloInteligente(nomeJogo, versaoStr, recursos, ehModMenu);
       
-      // Slug com ID + Versão para NUNCA gerar conflito de URL duplicada no Blogger
+      // Slug limpo, fixo e permanente baseado estritamente no ID do Firebase + tag mod
       const slugLimpo = idJogo.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       const tagSlug = ehModMenu ? 'mod-menu' : 'mod-apk';
-      const versaoSlug = versaoStr.toLowerCase().replace(/[^a-z0-9]/g, '-');
-      const tituloParaURL = `${slugLimpo}-${tagSlug}-v-${versaoSlug}`;
+      const tituloParaURL = `${slugLimpo}-${tagSlug}`;
 
       const descricaoPesquisa = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos, descricaoPesquisa);
@@ -343,14 +342,14 @@ async function executarPostagem() {
           customMetaData: descricaoPesquisa
         };
 
-        console.log(`🆕 Criando post com slug único baseado na versão...`);
+        console.log(`🆕 Criando post com URL limpa e fixa na API do Blogger...`);
         let response = await blogger.posts.insert({
           blogId: BLOG_ID,
           requestBody: postPayload
         });
 
         const postIdCriado = response.data.id;
-        console.log(`⏳ Aguardando 2 segundos para fixar a URL...`);
+        console.log(`⏳ Aguardando 2 segundos para fixar a URL permanente...`);
         await sleep(2000);
 
         // Atualiza para o título oficial completo com a versão visível
