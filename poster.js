@@ -111,16 +111,13 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   return Array.from(marcadores);
 }
 
-// TÍTULO COMPLETO COM A VERSÃO VISÍVEL NO BLOGGER
-function gerarTituloInteligente(nomeJogo, versao, recursos, ehModMenu) {
+// TÍTULO LIMPO E OFICIAL (SEM VERSÃO ESTÁTICA)
+function gerarTituloInteligente(nomeJogo, recursos, ehModMenu) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
-  
-  let vBruta = (versao || '1.0').toString().trim();
-  let vFormatada = vBruta.toLowerCase().startsWith('v') ? 'V' + vBruta.substring(1) : 'V' + vBruta;
-  
   const funcoesTitulo = recursos.slice(0, 8).join(' / ');
-  const tituloCru = `${nomeLimpo} ${tagMod} ${vFormatada} (${funcoesTitulo})`;
+
+  const tituloCru = `${nomeLimpo} ${tagMod} (${funcoesTitulo})`;
   return tituloCru.replace(/\s+/g, ' ').trim();
 }
 
@@ -322,30 +319,45 @@ async function executarPostagem() {
       const labels = definirMarcadoresInteligentes(nomeJogo, jogo, recursos);
       const ehModMenu = labels.includes('MOD MENU');
       
-      const versaoStr = jogo.versao || '1.0';
-      const tituloPostOficial = gerarTituloInteligente(nomeJogo, versaoStr, recursos, ehModMenu);
+      const tituloPostLimpo = gerarTituloInteligente(nomeJogo, recursos, ehModMenu);
+      
+      const slugFirebaseLimpo = idJogo.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const tagSlug = ehModMenu ? 'mod-menu' : 'mod-apk';
+      const tituloParaURL = `${slugFirebaseLimpo}-${tagSlug}`;
+
       const descricaoPesquisa = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos, descricaoPesquisa);
 
       try {
-        // Envia o payload limpo preenchendo tanto a searchDescription quanto o customMetaData
         const postPayload = {
-          title: tituloPostOficial,
+          title: tituloParaURL,
           content: htmlPost,
           labels: labels,
           searchDescription: descricaoPesquisa,
           customMetaData: descricaoPesquisa
         };
 
-        console.log(`🆕 Publicando post oficial na API do Blogger...`);
+        console.log(`🆕 Criando post com URL limpa baseada no ID...`);
         let response = await blogger.posts.insert({
           blogId: BLOG_ID,
           requestBody: postPayload
         });
 
+        const postIdCriado = response.data.id;
+        console.log(`⏳ Aguardando 2 segundos para fixar a URL limpa...`);
+        await sleep(2000);
+
+        // Atualiza para o título oficial limpo (sem versão estática)
+        postPayload.title = tituloPostLimpo;
+        response = await blogger.posts.update({
+          blogId: BLOG_ID,
+          postId: postIdCriado,
+          requestBody: postPayload
+        });
+
         const urlPublicada = response.data.url;
         console.log(`🚀 Post Publicado com Sucesso!`);
-        console.log(`📌 Título: ${tituloPostOficial}`);
+        console.log(`📌 Título: ${tituloPostLimpo}`);
         console.log(`🏷️ Marcadores: ${labels.join(', ')}`);
         console.log(`🔍 Descrição de Pesquisa (SEO): ${descricaoPesquisa}`);
         console.log(`🔗 URL: ${urlPublicada}`);
