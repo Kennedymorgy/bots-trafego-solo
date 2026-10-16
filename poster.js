@@ -111,7 +111,7 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   return Array.from(marcadores);
 }
 
-// TÍTULO SEM VERSÃO ESTÁTICA (TÍTULO LIMPO PARA MANTER A URL PERMANENTE)
+// TÍTULO LIMPO PARA MANTER A URL PERMANENTE CURTA
 function gerarTituloInteligente(nomeJogo, recursos, ehModMenu) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
@@ -130,7 +130,7 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
-// DESCRIÇÃO DE PESQUISA (SEO PARA O GOOGLE - COM A VERSÃO ATUALIZADA)
+// DESCRIÇÃO DE PESQUISA (SEO DEMAIS COM VERSÃO ATUALIZADA)
 function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
   let vBruta = (versao || '1.0').toString().trim();
   let vFormatada = vBruta.toLowerCase().startsWith('v') ? 'V' + vBruta.substring(1) : 'V' + vBruta;
@@ -239,7 +239,7 @@ Salve o nosso site nos favoritos do seu navegador para retornar e baixar novas v
 </div>`;
 }
 
-async function construirHTMLPost(jogo, idJogo, recursos) {
+async function construirHTMLPost(jogo, idJogo, recursos, descricaoPesquisa) {
   const nomeJogo = jogo.nome || idJogo.replace(/-/g, ' ');
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const capa = jogo.foto || '';
@@ -254,7 +254,8 @@ async function construirHTMLPost(jogo, idJogo, recursos) {
 
   const blocoSEO = gerarConteudoSEOBot(nomeLimpo, peso, recursos, ehModMenu);
 
-  return `<!--more-->
+  return `<meta name="description" content="${descricaoPesquisa}" />
+<!--more-->
 <!-- ======================================================== -->
 <!-- 1. DADOS OCULTOS LIDOS AUTOMATICAMENTE PELO TEMA         -->
 <!-- ======================================================== -->
@@ -318,7 +319,7 @@ async function executarPostagem() {
     }
 
     for (const idJogo in jogos) {
-      const jogo = jogos[idJogo];
+      let jogo = jogos[idJogo];
 
       if (INPUT_ID_JOGO && idJogo !== INPUT_ID_JOGO) {
         continue;
@@ -332,19 +333,33 @@ async function executarPostagem() {
       const nomeJogo = jogo.nome || idJogo.replace(/-/g, ' ');
       console.log(`\n🤖 Processando postagem para: "${idJogo}"...`);
 
+      // 🧹 SISTEMA AUTOMÁTICO DE LIMPEZA DE URLs DEFEITUOSAS (SUFIXOS NUMÉRICOS)
+      if (jogo.post_url && /_[0-9]{5,}\.html/i.test(jogo.post_url)) {
+        console.log(`🧹 URL com números doidos detectada (${jogo.post_url}). Limpando post antigo no Blogger...`);
+        if (jogo.blogger_post_id) {
+          try {
+            await blogger.posts.delete({ blogId: BLOG_ID, postId: jogo.blogger_post_id });
+            console.log(`🗑 Post antigo removido do Blogger com sucesso!`);
+          } catch (eClean) {
+            console.log(`⚠️ Não foi possível deletar o post antigo (pode já ter sido apagado). Seguindo...`);
+          }
+        }
+        jogo.blogger_post_id = null;
+        jogo.post_url = null;
+      }
+
       const recursos = obterRecursosDoJogo(jogo);
       const labels = definirMarcadoresInteligentes(nomeJogo, jogo, recursos);
       const ehModMenu = labels.includes('MOD MENU');
       
       const tituloPostLimpo = gerarTituloInteligente(nomeJogo, recursos, ehModMenu);
       
-      // Slug limpo baseado estritamente no ID do Firebase + tag mod para URL profissional curta
       const slugFirebaseLimpo = idJogo.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       const tagSlug = ehModMenu ? 'mod-menu' : 'mod-apk';
       const tituloParaURL = `${slugFirebaseLimpo}-${tagSlug}`;
 
       const descricaoPesquisa = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
-      const htmlPost = await construirHTMLPost(jogo, idJogo, recursos);
+      const htmlPost = await construirHTMLPost(jogo, idJogo, recursos, descricaoPesquisa);
 
       try {
         let response;
@@ -363,7 +378,8 @@ async function executarPostagem() {
           });
         } else {
           console.log(`🆕 Criando novo post no Blogger com URL curta e profissional...`);
-          // 1. Cria com o título baseado no ID do Firebase para fixar a URL limpa
+          
+          // Step 1: Cria com slug curto e fixo
           response = await blogger.posts.insert({
             blogId: BLOG_ID,
             requestBody: {
@@ -374,7 +390,7 @@ async function executarPostagem() {
             }
           });
 
-          // 2. Atualiza imediatamente para o título limpo oficial (sem a versão estática)
+          // Step 2: Atualiza para o título oficial completo
           const postIdCriado = response.data.id;
           response = await blogger.posts.update({
             blogId: BLOG_ID,
@@ -403,7 +419,7 @@ async function executarPostagem() {
           post_url: urlPublicada
         });
 
-        console.log(`✅ Marcado como publicado no Firebase.`);
+        console.log(`✅ Marcado como publicado e sincronizado no Firebase.`);
 
       } catch (errBlogger) {
         if (errBlogger.response && errBlogger.response.status === 429) {
