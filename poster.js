@@ -130,7 +130,7 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
-// DESCRIÇÃO DE PESQUISA (SEO DEMAIS COM VERSÃO ATUALIZADA)
+// DESCRIÇÃO DE PESQUISA (SEO COM VERSÃO ATUALIZADA)
 function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
   let vBruta = (versao || '1.0').toString().trim();
   let vFormatada = vBruta.toLowerCase().startsWith('v') ? 'V' + vBruta.substring(1) : 'V' + vBruta;
@@ -333,7 +333,7 @@ async function executarPostagem() {
       const nomeJogo = jogo.nome || idJogo.replace(/-/g, ' ');
       console.log(`\n🤖 Processando postagem para: "${idJogo}"...`);
 
-      // 🧹 SISTEMA AUTOMÁTICO DE LIMPEZA DE URLs DEFEITUOSAS (SUFIXOS NUMÉRICOS)
+      // 🧹 SISTEMA AUTOMÁTICO DE LIMPEZA DE URLs COM NÚMEROS DOIDOS
       if (jogo.post_url && /_[0-9]{5,}\.html/i.test(jogo.post_url)) {
         console.log(`🧹 URL com números doidos detectada (${jogo.post_url}). Limpando post antigo no Blogger...`);
         if (jogo.blogger_post_id) {
@@ -379,7 +379,7 @@ async function executarPostagem() {
         } else {
           console.log(`🆕 Criando novo post no Blogger com URL curta e profissional...`);
           
-          // Step 1: Cria com slug curto e fixo
+          // Passo 1: Cria com o slug limpo para fixar a URL perfeita
           response = await blogger.posts.insert({
             blogId: BLOG_ID,
             requestBody: {
@@ -390,8 +390,11 @@ async function executarPostagem() {
             }
           });
 
-          // Step 2: Atualiza para o título oficial completo
           const postIdCriado = response.data.id;
+          console.log(`⏳ Aguardando 3 segundos para travar a URL curta...`);
+          await sleep(3000);
+
+          // Passo 2: Atualiza para o título oficial completo (com as funções) e garante a descrição de pesquisa
           response = await blogger.posts.update({
             blogId: BLOG_ID,
             postId: postIdCriado,
