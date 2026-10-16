@@ -111,11 +111,11 @@ function definirMarcadoresInteligentes(nomeJogo, jogo, recursos) {
   return Array.from(marcadores);
 }
 
-// TÍTULO LIMPO E OFICIAL (SEM VERSÃO ESTÁTICA)
+// TÍTULO LIMPO PARA MANTER A URL PERMANENTE CURTA
 function gerarTituloInteligente(nomeJogo, recursos, ehModMenu) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
-  const funcoesTitulo = recursos.slice(0, 8).join(' / ');
+  const funcoesTitulo = recursos.slice(0, 10).join(' / ');
 
   const tituloCru = `${nomeLimpo} ${tagMod} (${funcoesTitulo})`;
   return tituloCru.replace(/\s+/g, ' ').trim();
@@ -130,6 +130,7 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
+// DESCRIÇÃO DE PESQUISA (SEO DEMAIS COM VERSÃO ATUALIZADA)
 function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
   let vBruta = (versao || '1.0').toString().trim();
   let vFormatada = vBruta.toLowerCase().startsWith('v') ? 'V' + vBruta.substring(1) : 'V' + vBruta;
@@ -150,6 +151,7 @@ function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
 function interpretarRecursoParaSEO(recurso, nomeJogo) {
   const recLower = recurso.toLowerCase();
   const jogoLower = nomeJogo.toLowerCase();
+
   const eCorrida = ['nfs', 'need for speed', 'fr legends', 'asphalt', 'real racing', 'carro', 'corrida'].some(k => jogoLower.includes(k));
 
   if (recLower.includes('dinheiro') || recLower.includes('ouro') || recLower.includes('coins') || recLower.includes('grana') || recLower.includes('gemas')) {
@@ -158,53 +160,67 @@ function interpretarRecursoParaSEO(recurso, nomeJogo) {
     }
     return `Tenha saldo ilimitado para comprar todos os itens, melhorias e desbloqueios da loja do ${nomeJogo} de forma totalmente livre.`;
   }
+
   if (recLower.includes('compra') || recLower.includes('in-app') || recLower.includes('gratuita')) {
     return `Sistema de pagamentos interno modificado para você adquirir pacotes e itens premium totalmente de graça, sem gastar dinheiro real.`;
   }
+
   if (recLower.includes('carro') || recLower.includes('veículo')) {
     return `Todos os carros, modelos e veículos do ${nomeJogo} já vêm completamente desbloqueados e disponíveis na garagem desde o primeiro acesso.`;
   }
+
   if (recLower.includes('mapa') || recLower.includes('pista') || recLower.includes('fase') || recLower.includes('mundo')) {
     return `Todas as pistas, mapas e fases do ${nomeJogo} estão abertas para você explorar e competir sem restrições ou bloqueios de progresso.`;
   }
+
   if (recLower.includes('anúncio') || recLower.includes('ads') || recLower.includes('sem anúncios')) {
     return `Anúncios chatos e pop-ups removidos por completo, permitindo que você jogue ${nomeJogo} com máxima fluidez e foco total na diversão.`;
   }
+
   if (recLower.includes('menu') || recLower.includes('mod menu')) {
     return `Painel flutuante exclusivo integrado ao ${nomeJogo}, permitindo ativar e desativar várias vantagens diretamente na tela durante as partidas.`;
   }
+
   if (recLower.includes('munição') || recLower.includes('tiro') || recLower.includes('arma')) {
     return `Munição infinita e armamento liberado para dominar os confrontos sem risco de ficar desarmado no ${nomeJogo}.`;
   }
+
   if (recLower.includes('vida') || recLower.includes('imortal') || recLower.includes('god mode') || recLower.includes('energia')) {
     return `Modo imortal e energia infinita ativados para garantir que seu personagem suporte qualquer dano ou obstáculo no ${nomeJogo}.`;
   }
+
   if (recLower.includes('desbloqueado') || recLower.includes('all unlocked')) {
     return `Conteúdo premium totalmente liberado para você aproveitar tudo que o ${nomeJogo} tem a oferecer sem precisar passar horas jogando para desbloquear.`;
   }
+
   return `Vantagem exclusiva de "${recurso}" aplicada de forma otimizada para turbinar sua gameplay em ${nomeJogo}.`;
 }
 
 function gerarConteudoSEOBot(nomeJogo, peso, recursos, ehModMenu) {
   const nomeLimpo = limparNomeJogo(nomeJogo);
   const tipoModStr = ehModMenu ? 'Mod Menu' : 'Mod APK';
+
   const listaRecursosFormatada = recursos.map(rec => {
     const explicacao = interpretarRecursoParaSEO(rec, nomeLimpo);
     return `<li><strong>${rec}:</strong> ${explicacao}</li>`;
   }).join('\n');
 
   return `<div class="seo-content-box">
+
 <h2>Sobre o ${nomeLimpo} ${tipoModStr} <span class="cyanPostVersionDisplay"></span></h2>
 <p>Procurando a versão mais recente e otimizada do <strong>${nomeLimpo} ${tipoModStr}</strong> para Android? Aqui você baixa com segurança, velocidade e total estabilidade. Esta modificação aprimora o desempenho do jogo e remove barreiras chatas para elevar sua experiência.</p>
 <p>Aproveite gráficos ajustados, comandos otimizados e recursos exclusivos liberados para curtir o ${nomeLimpo} ao máximo no seu smartphone.</p>
+
 <div class="seo-alert-box">
 <strong>Dica de Instalação:</strong> Para evitar conflitos ou erros de pacote no ${nomeLimpo}, lembre-se de desinstalar qualquer versão anterior que esteja instalada no seu celular antes de aplicar este update.
 </div>
+
 <h2>Principais Recursos do ${tipoModStr}</h2>
 <p>Veja em detalhes o que foi modificado e otimizado nesta versão do ${nomeLimpo}:</p>
 <ul>
 ${listaRecursosFormatada}
 </ul>
+
 <h2>Requisitos e Como Instalar no Android</h2>
 <p>O arquivo APK pesa aproximadamente <strong>${peso}</strong> e foi testado para rodar perfeitamente em dispositivos com Android 5.0 ou superior. Siga o passo a passo para instalar:</p>
 <ol>
@@ -212,11 +228,14 @@ ${listaRecursosFormatada}
 <li>Permita a instalação nas configurações do seu celular ativando a opção de <em>Fontes Desconhecidas</em>, caso solicitado.</li>
 <li>Abra o arquivo baixado, conclua a instalação e divirta-se sem limites!</li>
 </ol>
+
 <h2>Perguntas Frequentes (FAQ)</h2>
 <p><strong>É necessário ter Root no Android para jogar o ${nomeLimpo}?</strong><br/>
 Não! O jogo roda perfeitamente em aparelhos padrão sem necessidade de root.</p>
+
 <p><strong>Como recebo novas atualizações do ${nomeLimpo}?</strong><br/>
 Salve o nosso site nos favoritos do seu navegador para retornar e baixar novas versões sempre que forem lançadas.</p>
+
 </div>`;
 }
 
@@ -232,6 +251,7 @@ async function construirHTMLPost(jogo, idJogo, recursos, descricaoPesquisa) {
 
   const labelsTemp = definirMarcadoresInteligentes(nomeJogo, jogo, recursos);
   const ehModMenu = labelsTemp.includes('MOD MENU');
+
   const blocoSEO = gerarConteudoSEOBot(nomeLimpo, peso, recursos, ehModMenu);
 
   return `<meta name="description" content="${descricaoPesquisa}" />
@@ -239,21 +259,31 @@ async function construirHTMLPost(jogo, idJogo, recursos, descricaoPesquisa) {
 <!-- ======================================================== -->
 <!-- 1. DADOS OCULTOS LIDOS AUTOMATICAMENTE PELO TEMA         -->
 <!-- ======================================================== -->
+
 <span id="cyanPostName" style="display:none;">${nomeLimpo}</span>
 <span id="rawPostVersion" class="cyanPostVersionDisplay" style="display:none;">${versaoReal}</span>
+
 <div class="post-cover-wrapper" style="display:none;">
   <img src="${capa}" alt="${nomeLimpo} Mod APK" />
 </div>
 <span id="rawCoverImage" style="display:none;">${capa}</span>
+
 <span id="rawPlayStoreLink" style="display:none;">${playstore}</span>
+
 <input type="hidden" id="realDownloadLink" value="${downloadLink}" />
+
 <span id="rawAppSize" style="display:none;">${peso}</span>
+
+<!-- Tags de Recursos do Mod -->
 <div class="mod-features-wrapper" style="display:none;">
 ${gerarModTagsHTML(recursos)}
 </div>
+
+<!-- Screenshots -->
 <div class="raw-screenshots" style="display:none;">
 ${gerarScreenshotsHTML(screenshots)}
 </div>
+
 <!-- ========================================== -->
 <!-- 2. CONTEÚDO VISÍVEL OTIMIZADO PARA GOOGLE  -->
 <!-- ========================================== -->
@@ -273,12 +303,10 @@ async function executarPostagem() {
         updateData.peso = INPUT_PESO_MB;
       }
       updateData.postado_blogger = false;
-      updateData.blogger_post_id = null;
-      updateData.post_url = null;
 
-      console.log(`📡 Limpando estado anterior e salvando novas funções no Firebase para "${INPUT_ID_JOGO}"...`);
+      console.log(`📡 Salvando novas funções e peso no Firebase para "${INPUT_ID_JOGO}"...`);
       await axios.patch(`${FIREBASE_BASE_URL}/jogos/${INPUT_ID_JOGO}.json`, updateData);
-      console.log(`✅ Firebase limpo e atualizado com sucesso!`);
+      console.log(`✅ Firebase atualizado com sucesso!`);
     }
 
     console.log('📡 Buscando lista de jogos no Firebase...');
@@ -305,14 +333,19 @@ async function executarPostagem() {
       const nomeJogo = jogo.nome || idJogo.replace(/-/g, ' ');
       console.log(`\n🤖 Processando postagem para: "${idJogo}"...`);
 
-      if (jogo.blogger_post_id) {
-        console.log(`🧹 Removendo post antigo no Blogger (ID: ${jogo.blogger_post_id})...`);
-        try {
-          await blogger.posts.delete({ blogId: BLOG_ID, postId: jogo.blogger_post_id });
-          console.log(`🗑 Post antigo apagado com sucesso do Blogger!`);
-        } catch (eDel) {
-          console.log(`⚠️ Post antigo já não existia. Seguindo...`);
+      // 🧹 SISTEMA AUTOMÁTICO DE LIMPEZA DE URLs DEFEITUOSAS (SUFIXOS NUMÉRICOS)
+      if (jogo.post_url && /_[0-9]{5,}\.html/i.test(jogo.post_url)) {
+        console.log(`🧹 URL com números doidos detectada (${jogo.post_url}). Limpando post antigo no Blogger...`);
+        if (jogo.blogger_post_id) {
+          try {
+            await blogger.posts.delete({ blogId: BLOG_ID, postId: jogo.blogger_post_id });
+            console.log(`🗑 Post antigo removido do Blogger com sucesso!`);
+          } catch (eClean) {
+            console.log(`⚠️ Não foi possível deletar o post antigo (pode já ter sido apagado). Seguindo...`);
+          }
         }
+        jogo.blogger_post_id = null;
+        jogo.post_url = null;
       }
 
       const recursos = obterRecursosDoJogo(jogo);
@@ -329,34 +362,50 @@ async function executarPostagem() {
       const htmlPost = await construirHTMLPost(jogo, idJogo, recursos, descricaoPesquisa);
 
       try {
-        const postPayload = {
-          title: tituloParaURL,
-          content: htmlPost,
-          labels: labels,
-          searchDescription: descricaoPesquisa,
-          customMetaData: descricaoPesquisa
-        };
+        let response;
 
-        console.log(`🆕 Criando post com URL limpa baseada no ID...`);
-        let response = await blogger.posts.insert({
-          blogId: BLOG_ID,
-          requestBody: postPayload
-        });
+        if (jogo.blogger_post_id) {
+          console.log(`🔄 Atualizando post existente no Blogger (ID: ${jogo.blogger_post_id})...`);
+          response = await blogger.posts.update({
+            blogId: BLOG_ID,
+            postId: jogo.blogger_post_id,
+            requestBody: {
+              title: tituloPostLimpo,
+              content: htmlPost,
+              labels: labels,
+              searchDescription: descricaoPesquisa
+            }
+          });
+        } else {
+          console.log(`🆕 Criando novo post no Blogger com URL curta e profissional...`);
+          
+          // Step 1: Cria com slug curto e fixo
+          response = await blogger.posts.insert({
+            blogId: BLOG_ID,
+            requestBody: {
+              title: tituloParaURL,
+              content: htmlPost,
+              labels: labels,
+              searchDescription: descricaoPesquisa
+            }
+          });
 
-        const postIdCriado = response.data.id;
-        console.log(`⏳ Aguardando 2 segundos para fixar a URL limpa...`);
-        await sleep(2000);
-
-        // Atualiza para o título oficial limpo (sem versão estática)
-        postPayload.title = tituloPostLimpo;
-        response = await blogger.posts.update({
-          blogId: BLOG_ID,
-          postId: postIdCriado,
-          requestBody: postPayload
-        });
+          // Step 2: Atualiza para o título oficial completo
+          const postIdCriado = response.data.id;
+          response = await blogger.posts.update({
+            blogId: BLOG_ID,
+            postId: postIdCriado,
+            requestBody: {
+              title: tituloPostLimpo,
+              content: htmlPost,
+              labels: labels,
+              searchDescription: descricaoPesquisa
+            }
+          });
+        }
 
         const urlPublicada = response.data.url;
-        console.log(`🚀 Post Publicado com Sucesso!`);
+        console.log(`🚀 Post Publicado/Atualizado com Sucesso!`);
         console.log(`📌 Título: ${tituloPostLimpo}`);
         console.log(`🏷️ Marcadores: ${labels.join(', ')}`);
         console.log(`🔍 Descrição de Pesquisa (SEO): ${descricaoPesquisa}`);
