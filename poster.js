@@ -130,6 +130,7 @@ function gerarScreenshotsHTML(screenshots) {
   return screenshots.map((screen, idx) => `  <img src="${screen}" alt="Gameplay ${idx + 1}" />`).join('\n');
 }
 
+// DESCRIÇÃO DE PESQUISA COM VERSÃO DINÂMICA (ATÉ 150 CARACTERES)
 function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
   let vBruta = (versao || '1.0').toString().trim();
   let vFormatada = vBruta.toLowerCase().startsWith('v') ? 'V' + vBruta.substring(1) : 'V' + vBruta;
@@ -374,7 +375,6 @@ async function executarPostagem() {
         } else {
           console.log(`🆕 Criando post com título curto para travar a URL curta e limpa...`);
           
-          // Passo 1: Cria com o título curto/slug para a URL nascer perfeita
           response = await blogger.posts.insert({
             blogId: BLOG_ID,
             requestBody: {
@@ -385,7 +385,6 @@ async function executarPostagem() {
             }
           });
 
-          // Passo 2: Atualiza instantaneamente para o título completo (a URL fica congelada curta)
           const postIdCriado = response.data.id;
           console.log(`🔄 Atualizando para o título oficial completo...`);
           response = await blogger.posts.update({
@@ -403,6 +402,7 @@ async function executarPostagem() {
         const urlPublicada = response.data.url;
         console.log(`🚀 Post Publicado com Sucesso!`);
         console.log(`📌 Título Exibido: ${tituloCompleto}`);
+        console.log(`🔍 Descrição de Pesquisa: ${descricaoPesquisa}`);
         console.log(`🔗 URL Hiper-Curta: ${urlPublicada}`);
 
         await notificarGoogleIndexing(urlPublicada);
