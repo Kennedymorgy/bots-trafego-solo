@@ -89,7 +89,6 @@ async function sincronizarDescricoesSEO() {
 
         let htmlContent = postAtual.data.content || '';
 
-        // Substitui a meta tag de descrição no HTML ou injeta no topo
         const metaTagRegex = /<meta\s+name=["']description["']\s+content=["'].*?["']\s*\/?>/i;
         const novaMetaTag = `<meta name="description" content="${novaDescricao}" />`;
 
