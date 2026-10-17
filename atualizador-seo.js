@@ -48,7 +48,6 @@ function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
   let desc = `Baixar ${nomeLimpo} ${tagMod} ${vFormatada} com ${funcoesStr} para Android. Versão atualizada, segura e com download direto!`;
   desc = desc.replace(/\s+/g, ' ').trim();
 
-  // Trava rígida em 150 caracteres para o Google não cortar
   if (desc.length > 150) {
     desc = desc.substring(0, 147) + '...';
   }
@@ -57,7 +56,7 @@ function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
 
 async function sincronizarDescricoesSEO() {
   try {
-    console.log('📡 Buscando jogos no Firebase para atualizar descrições de SEO...');
+    console.log('📡 Buscando jogos no Firebase para atualizar meta tags de SEO...');
     const res = await axios.get(`${FIREBASE_BASE_URL}/jogos.json`);
     const jogos = res.data;
 
@@ -70,7 +69,7 @@ async function sincronizarDescricoesSEO() {
       const jogo = jogos[idJogo];
 
       if (!jogo.blogger_post_id) {
-        continue; // Pula se ainda não foi postado
+        continue;
       }
 
       const nomeJogo = jogo.nome || idJogo.replace(/-/g, ' ');
@@ -80,31 +79,47 @@ async function sincronizarDescricoesSEO() {
       
       const novaDescricao = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
 
-      console.log(`\n🔄 Atualizando SEO (Patch) para: "${idJogo}" (Versão: ${jogo.versao || '1.0'})`);
+      console.log(`\n🔄 Sincronizando SEO no HTML para: "${idJogo}" (Versão: ${jogo.versao || '1.0'})`);
 
       try {
-        // PATCH: Grava diretamente na caixinha de descrição de pesquisa do Blogger
+        const postAtual = await blogger.posts.get({
+          blogId: BLOG_ID,
+          postId: jogo.blogger_post_id
+        });
+
+        let htmlContent = postAtual.data.content || '';
+
+        // Substitui a meta tag de descrição no HTML ou injeta no topo
+        const metaTagRegex = /<meta\s+name=["']description["']\s+content=["'].*?["']\s*\/?>/i;
+        const novaMetaTag = `<meta name="description" content="${novaDescricao}" />`;
+
+        if (metaTagRegex.test(htmlContent)) {
+          htmlContent = htmlContent.replace(metaTagRegex, novaMetaTag);
+        } else {
+          htmlContent = novaMetaTag + '\n' + htmlContent;
+        }
+
         await blogger.posts.patch({
           blogId: BLOG_ID,
           postId: jogo.blogger_post_id,
           requestBody: {
-            searchDescription: novaDescricao
+            content: htmlContent
           }
         });
 
-        console.log(`✅ Caixinha de pesquisa preenchida (${novaDescricao.length} caracteres): ${novaDescricao}`);
+        console.log(`✅ Meta tag HTML atualizada com sucesso para o Google!`);
+        console.log(`📝 SEO: ${novaDescricao}`);
 
       } catch (errPost) {
-        // Se o post foi apagado do Blogger mas estava salvo no Firebase, limpa o ID automaticamente
         if (errPost.code === 404 || (errPost.message && errPost.message.includes('not found'))) {
-          console.warn(`⚠️ Post ID ${jogo.blogger_post_id} não existe mais no Blogger. Limpando referência no Firebase...`);
+          console.warn(`⚠️ Post antigo removido no Blogger. Limpando referência no Firebase...`);
           await axios.patch(`${FIREBASE_BASE_URL}/jogos/${idJogo}.json`, {
             blogger_post_id: null,
             postado_blogger: false,
             post_url: null
           });
         } else {
-          console.error(`❌ Erro ao atualizar o post "${idJogo}":`, errPost.message);
+          console.error(`❌ Erro no post "${idJogo}":`, errPost.message);
         }
       }
 
