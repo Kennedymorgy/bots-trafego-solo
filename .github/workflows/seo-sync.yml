@@ -2,7 +2,7 @@ name: Bot 2 - Sincronizar Versoes SEO
 
 on:
   schedule:
-    - cron: '0 */15 * * *' # Roda automaticamente a cada 15 horas
+    - cron: '0 */8 * * *' # Roda automaticamente a cada 8 horas
   workflow_dispatch: # Permite rodar manualmente no painel do GitHub quando quiser
 
 jobs:
