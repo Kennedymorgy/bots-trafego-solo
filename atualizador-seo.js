@@ -79,7 +79,6 @@ async function sincronizarDescricoesSEO() {
       
       const novaDescricao = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
       
-      // Formatação limpa da versão para a caixinha de pesquisa
       let vBruta = (jogo.versao || '1.0').toString().trim();
       let versaoNovaFormatada = vBruta.toLowerCase().startsWith('v') ? 'V' + vBruta.substring(1) : 'V' + vBruta;
 
@@ -105,32 +104,31 @@ async function sincronizarDescricoesSEO() {
         // 2. Atualização da Caixinha Lateral de Pesquisa (searchDescription)
         let descCaixaAtual = postAtual.data.searchDescription || '';
         let novaDescCaixa = descCaixaAtual;
-        const regexVersao = /v\d+(\.\d+)+/gi;
+        const regexVersao = /v\d+(\.\d+)*/gi;
 
         if (descCaixaAtual) {
           if (regexVersao.test(descCaixaAtual)) {
-            // Substitui apenas o número da versão antiga na sua frase customizada
             novaDescCaixa = descCaixaAtual.replace(regexVersao, versaoNovaFormatada);
           } else {
             novaDescCaixa = `${descCaixaAtual.trim()} ${versaoNovaFormatada}`;
           }
         } else {
-          // Se estiver vazia, usa a gerada automaticamente
           novaDescCaixa = novaDescricao;
         }
 
-        // Trava rigorosa de 150 caracteres para a caixinha
         if (novaDescCaixa.length > 150) {
           novaDescCaixa = novaDescCaixa.substring(0, 147) + '...';
         }
 
-        // Envia as duas atualizações juntas para o Blogger (HTML + Caixinha Lateral)
-        await blogger.posts.patch({
+        // Usamos update completo para forçar a API a reescrever o campo de searchDescription
+        await blogger.posts.update({
           blogId: BLOG_ID,
           postId: jogo.blogger_post_id,
           requestBody: {
+            title: postAtual.data.title,
             content: htmlContent,
-            searchDescription: novaDescCaixa
+            searchDescription: novaDescCaixa,
+            labels: postAtual.data.labels || []
           }
         });
 
