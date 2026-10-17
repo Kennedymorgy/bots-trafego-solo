@@ -45,12 +45,11 @@ function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
   const funcoesStr = recursos.slice(0, 2).join(' e ');
 
-  let desc = `Baixar ${nomeLimpo} ${tagMod} ${vFormatada} com ${funcoesStr} para Android. Download direto!`;
+  let desc = `Baixar ${nomeLimpo} ${tagMod} ${vFormatada} com ${funcoesStr} para Android. Versão atualizada, segura e com download direto!`;
   desc = desc.replace(/\s+/g, ' ').trim();
 
-  // Trava de teste ajustada para no máximo 130 caracteres
-  if (desc.length > 130) {
-    desc = desc.substring(0, 130);
+  if (desc.length > 150) {
+    desc = desc.substring(0, 147) + '...';
   }
   return desc;
 }
@@ -102,13 +101,12 @@ async function sincronizarDescricoesSEO() {
           htmlContent = novaMetaTag + '\n' + htmlContent;
         }
 
-        // 2. Atualização da Caixinha Lateral (searchDescription)
+        // 2. Atualização da Caixinha Lateral de Pesquisa (searchDescription)
         let descCaixaAtual = postAtual.data.searchDescription || '';
-        let novaDescCaixa = '';
+        let novaDescCaixa = descCaixaAtual;
+        const regexVersao = /v\d+(\.\d+)*/gi;
 
-        const regexVersao = /V?\d+(\.\d+)+/gi;
-
-        if (descCaixaAtual.trim() !== '') {
+        if (descCaixaAtual) {
           if (regexVersao.test(descCaixaAtual)) {
             novaDescCaixa = descCaixaAtual.replace(regexVersao, versaoNovaFormatada);
           } else {
@@ -118,15 +116,11 @@ async function sincronizarDescricoesSEO() {
           novaDescCaixa = novaDescricao;
         }
 
-        // Trava rígida de teste: limita rigorosamente a 130 caracteres
-        novaDescCaixa = novaDescCaixa.replace(/\s+/g, ' ').trim();
-        if (novaDescCaixa.length > 130) {
-          novaDescCaixa = novaDescCaixa.substring(0, 130);
+        if (novaDescCaixa.length > 150) {
+          novaDescCaixa = novaDescCaixa.substring(0, 147) + '...';
         }
 
-        console.log(`📏 Tamanho final da caixinha: ${novaDescCaixa.length}/130 caracteres`);
-
-        // Atualização via update completo enviando o texto garantido <= 130 chars
+        // Usamos update completo para forçar a API a reescrever o campo de searchDescription
         await blogger.posts.update({
           blogId: BLOG_ID,
           postId: jogo.blogger_post_id,
@@ -138,8 +132,8 @@ async function sincronizarDescricoesSEO() {
           }
         });
 
-        console.log(`✅ Caixinha de Pesquisa e Meta Tag atualizadas com sucesso!`);
-        console.log(`📝 Caixinha: "${novaDescCaixa}"`);
+        console.log(`✅ Meta tag HTML e Caixinha de Pesquisa atualizadas com sucesso!`);
+        console.log(`📝 Nova Caixinha: ${novaDescCaixa}`);
 
       } catch (errPost) {
         if (errPost.code === 404 || (errPost.message && errPost.message.includes('not found'))) {
