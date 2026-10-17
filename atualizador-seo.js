@@ -45,12 +45,12 @@ function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
   const tagMod = ehModMenu ? 'MOD MENU' : 'MOD APK';
   const funcoesStr = recursos.slice(0, 2).join(' e ');
 
-  let desc = `Baixar ${nomeLimpo} ${tagMod} ${vFormatada} com ${funcoesStr} para Android. Versão atualizada, segura e com download direto!`;
+  let desc = `Baixar ${nomeLimpo} ${tagMod} ${vFormatada} com ${funcoesStr} para Android. Download direto!`;
   desc = desc.replace(/\s+/g, ' ').trim();
 
-  // Trava rígida que NUNCA passa de 150 caracteres
-  if (desc.length > 150) {
-    desc = desc.substring(0, 150);
+  // Trava de teste ajustada para no máximo 130 caracteres
+  if (desc.length > 130) {
+    desc = desc.substring(0, 130);
   }
   return desc;
 }
@@ -106,7 +106,6 @@ async function sincronizarDescricoesSEO() {
         let descCaixaAtual = postAtual.data.searchDescription || '';
         let novaDescCaixa = '';
 
-        // Regex melhorado para capturar variações como V1.3.128, v1.3.128, 1.3.128
         const regexVersao = /V?\d+(\.\d+)+/gi;
 
         if (descCaixaAtual.trim() !== '') {
@@ -119,15 +118,15 @@ async function sincronizarDescricoesSEO() {
           novaDescCaixa = novaDescricao;
         }
 
-        // Trava final ABSOLUTA em 150 caracteres
+        // Trava rígida de teste: limita rigorosamente a 130 caracteres
         novaDescCaixa = novaDescCaixa.replace(/\s+/g, ' ').trim();
-        if (novaDescCaixa.length > 150) {
-          novaDescCaixa = novaDescCaixa.substring(0, 150);
+        if (novaDescCaixa.length > 130) {
+          novaDescCaixa = novaDescCaixa.substring(0, 130);
         }
 
-        console.log(`📏 Tamanho final da caixinha: ${novaDescCaixa.length}/150 caracteres`);
+        console.log(`📏 Tamanho final da caixinha: ${novaDescCaixa.length}/130 caracteres`);
 
-        // Atualização via update completo enviando o texto garantido <= 150 chars
+        // Atualização via update completo enviando o texto garantido <= 130 chars
         await blogger.posts.update({
           blogId: BLOG_ID,
           postId: jogo.blogger_post_id,
