@@ -56,7 +56,7 @@ function gerarDescricaoPesquisaBot(nomeJogo, versao, recursos, ehModMenu) {
 
 async function sincronizarDescricoesSEO() {
   try {
-    console.log('📡 Buscando jogos no Firebase para atualizar meta tags de SEO...');
+    console.log('📡 Buscando jogos no Firebase para atualizar meta tags e caixinha de SEO...');
     const res = await axios.get(`${FIREBASE_BASE_URL}/jogos.json`);
     const jogos = res.data;
 
@@ -78,8 +78,12 @@ async function sincronizarDescricoesSEO() {
       const ehModMenu = textoCompleto.includes('mod menu') || textoCompleto.includes('menu');
       
       const novaDescricao = gerarDescricaoPesquisaBot(nomeJogo, jogo.versao, recursos, ehModMenu);
+      
+      // Formatação limpa da versão para a caixinha de pesquisa
+      let vBruta = (jogo.versao || '1.0').toString().trim();
+      let versaoNovaFormatada = vBruta.toLowerCase().startsWith('v') ? 'V' + vBruta.substring(1) : 'V' + vBruta;
 
-      console.log(`\n🔄 Sincronizando SEO no HTML para: "${idJogo}" (Versão: ${jogo.versao || '1.0'})`);
+      console.log(`\n🔄 Sincronizando SEO para: "${idJogo}" (Versão: ${jogo.versao || '1.0'})`);
 
       try {
         const postAtual = await blogger.posts.get({
@@ -87,8 +91,8 @@ async function sincronizarDescricoesSEO() {
           postId: jogo.blogger_post_id
         });
 
+        // 1. Atualização do HTML (Meta Tag)
         let htmlContent = postAtual.data.content || '';
-
         const metaTagRegex = /<meta\s+name=["']description["']\s+content=["'].*?["']\s*\/?>/i;
         const novaMetaTag = `<meta name="description" content="${novaDescricao}" />`;
 
@@ -98,16 +102,40 @@ async function sincronizarDescricoesSEO() {
           htmlContent = novaMetaTag + '\n' + htmlContent;
         }
 
+        // 2. Atualização da Caixinha Lateral de Pesquisa (searchDescription)
+        let descCaixaAtual = postAtual.data.searchDescription || '';
+        let novaDescCaixa = descCaixaAtual;
+        const regexVersao = /v\d+(\.\d+)+/gi;
+
+        if (descCaixaAtual) {
+          if (regexVersao.test(descCaixaAtual)) {
+            // Substitui apenas o número da versão antiga na sua frase customizada
+            novaDescCaixa = descCaixaAtual.replace(regexVersao, versaoNovaFormatada);
+          } else {
+            novaDescCaixa = `${descCaixaAtual.trim()} ${versaoNovaFormatada}`;
+          }
+        } else {
+          // Se estiver vazia, usa a gerada automaticamente
+          novaDescCaixa = novaDescricao;
+        }
+
+        // Trava rigorosa de 150 caracteres para a caixinha
+        if (novaDescCaixa.length > 150) {
+          novaDescCaixa = novaDescCaixa.substring(0, 147) + '...';
+        }
+
+        // Envia as duas atualizações juntas para o Blogger (HTML + Caixinha Lateral)
         await blogger.posts.patch({
           blogId: BLOG_ID,
           postId: jogo.blogger_post_id,
           requestBody: {
-            content: htmlContent
+            content: htmlContent,
+            searchDescription: novaDescCaixa
           }
         });
 
-        console.log(`✅ Meta tag HTML atualizada com sucesso para o Google!`);
-        console.log(`📝 SEO: ${novaDescricao}`);
+        console.log(`✅ Meta tag HTML e Caixinha de Pesquisa atualizadas com sucesso!`);
+        console.log(`📝 Nova Caixinha: ${novaDescCaixa}`);
 
       } catch (errPost) {
         if (errPost.code === 404 || (errPost.message && errPost.message.includes('not found'))) {
